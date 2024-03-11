@@ -1,0 +1,599 @@
+#!/usr/bin/env python3
+import configparser
+from datetime import datetime
+from flatten_dict import flatten
+import glob
+from pathlib import Path
+import os
+import re
+import requests
+
+import folium
+import pandas as pd
+import polyline
+from pretty_html_table import build_table
+import reverse_geocoder as rg
+from stravalib import Client
+from thefuzz import process, fuzz
+
+
+class CountryData:
+    def __init__(
+        self,
+        fname_cc ='country_centroids.csv',
+        fname_wad='world_admin_divisions.csv'):
+        self.df_cc = pd.read_csv(fname_cc)
+        self.df_wad = pd.read_csv(
+            fname_wad).fillna('unknown')
+        
+    def get_country_centroids(self):
+        return self.df_cc[['name',
+                                        'latitude',
+                                        'longitude']]
+
+    def get_data_admin_areas(self, df, country):
+        country_admin = list(df['country_admin'])
+        ca = [ca for cas in country_admin
+            for ca in cas]
+        df_ca = pd.DataFrame(
+            ca, columns=['country', 'admin'])
+        strings = set(df_ca[
+            df_ca.country == country]['admin'])
+        return [x for x in strings if x]
+        
+    def get_geo(self, df, slice=1):
+        dfe = df[['id','coords']].explode(
+            'coords').dropna()
+        coords_slice = list(dfe.coords)[::slice]
+        ids_slice = list(dfe.id)[::slice]
+        ta = {}
+        tb = {}
+        adm_ccs = [(x['cc'], x['admin1'])
+            for x in rg.search(coords_slice)]
+        for idx, adm_cc in enumerate(adm_ccs):
+            t = (adm_cc[0], adm_cc[1])
+            if t not in ta.get(ids_slice[idx], []):
+                country = self.cc_to_country(
+                    adm_cc[0])
+                tb.setdefault(ids_slice[idx],[]
+                    ).append((country, adm_cc[1]))
+                ta.setdefault(ids_slice[idx],[]
+                    ).append(t)
+        ans = pd.DataFrame(
+            tb.items(),
+            columns=['id','country_admin'])
+        return ans
+
+    def cc_to_country(self, cc):
+        try:
+            ans = list(self.df_cc[
+                self.df_cc.country == cc]['name'])[0]
+        except IndexError as ie:
+            ans = 'unknown'
+            #print(f'{ie}: for {cc}')
+        return ans
+            
+    def get_admin_tracking(self, df, country):
+        #NAME,COUNTRY,ISO_CC,ADMINTYPE
+        #Badakhshān,Afghanistan,AF,Province
+        a_adm = self.get_data_admin_areas(
+            df, country)
+        tot_country_adm = self.df_wad[
+            self.df_wad.country.str.contains(
+            country)].name
+        if len(tot_country_adm) == 0:
+            print(country)
+        return(f'{len(a_adm)}/'
+                    f'{len(tot_country_adm)}')
+                    #f'{", ".join(a_adm)}')
+                    #f'{", ".join(tot_country_adm)}')
+
+class StravaData:
+    def __init__(
+        self, pickles='', http_with_code=''):
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
+        self.pickles = pickles
+        self.code = \
+            self.get_code_from_http_string(
+            http_with_code)
+        self.col_names = [    
+            'map/summary_polyline',
+            'coords',
+            'id',
+            'achievement_count',
+            'athlete/id',
+            'start_date_local',
+            'type',
+            'name',
+            'distance',
+            'total_elevation_gain',
+            'elev_high',
+            'elev_low',
+            'gear_id']
+        self.df_base = self.create_base()
+        self.print_df_size_by_a_id(self.df_base)
+        fname_cc = self.config.get(
+            'path',
+            'fname_country_centroids')
+        fname_wad = self.config.get(
+            'path',
+            'fname_world_administrative_divisions')
+        self.CD = CountryData(
+            fname_cc, fname_wad)
+        try:
+            self.headers = self.get_headers(
+                self.code)
+            print('Authorization code was '
+                      'succsessful.')
+        except:
+            print('Authorization code '
+                      'incorrect. Fix or proceed with ' 
+                      'local data.')
+    
+    def df_by_a_id(self, df, a_id):
+        return df[df['athlete/id'] == a_id]
+
+    def run(self, page_count = 200):
+        if not hasattr(self, "headers"):
+            return self.df_base
+        code_a_id = self.run_athlete_query()
+        final_time = self.get_df_final_time(
+            self.df_base, code_a_id)
+        df_code = self.setup_df()
+        for page in range(1, page_count):
+            df_code, data_end = \
+                self.run_activities_query(
+                    page, df_code,
+                    code_a_id, final_time)
+            if data_end:
+                if len(df_code) == 0:
+                    print(f'{code_a_id}: '
+                        'No new rides found')
+                    return self.df_base
+                else:
+                    break
+        df_code = self.add_coord_columns(
+            df_code)
+        df_full = self.clean_df(
+            self.df_base, df_code, code_a_id)
+        self.save_pickle(df_full, code_a_id)
+        self.print_df_size_by_a_id(df_full)
+        return df_full
+    
+    def get_code_from_http_string(
+        self, http_with_code):
+        m = re.search("code=(.*)&",
+            http_with_code)
+        if m:
+            code = m.group(1)
+        else:
+            code = ''
+        return code
+      
+    def add_coord_columns(self, df_code):
+        df_code['coords'] = df_code[
+            'map/summary_polyline'].apply(
+            polyline.decode)
+        df_geo = self.CD.get_geo(df_code)
+        df_code = pd.merge(
+            df_code ,df_geo, on='id', how='right')
+        df_code.coords = \
+            df_code.coords.apply(tuple)
+        df_code.country_admin = \
+            df_code.country_admin.apply(tuple)
+        return df_code
+        
+    def setup_df(self):
+        return pd.DataFrame(
+            columns = self.col_names)
+    
+    def get_a_id_list(self, df):
+        return list(set(df.get('athlete/id', {0})))
+        
+    def get_df_final_time(self, df, a_id):
+        df = self.df_by_a_id(df, a_id)
+        try:
+            final_time = \
+                datetime.strptime(
+                    df.get(
+                    'start_date_local').sort_values(
+                    ascending=False).iat[0],
+                    "%Y-%m-%dT%H:%M:%SZ")
+            print(f'{a_id}: Final listed time in '
+                      f'pickle file {final_time}')
+        except:
+            final_time = datetime.strptime(
+                '2009', "%Y")
+            print(f'{a_id}: No pickle file. Final listed '
+                      'time is the creation of Strava '
+                      f'and is {final_time}')
+        return final_time
+        
+    def print_df_size_by_a_id(self, df):
+        msg = ''
+        a_ids = self.get_a_id_list(df)
+        for a_id in a_ids:
+            size = len(self.df_by_a_id(df, a_id))
+            msg += f'a_id: {a_id}, size: {size}\n'
+        print(msg)
+
+    def create_base(self):
+         df_base = self.setup_df()
+         for pickle in self.pickles:
+             df_tmp = pd. read_pickle(pickle)
+             df_base = pd.concat(
+             [df_base, df_tmp], ignore_index=True)
+         return df_base
+
+    def clean_df(self, df_base, df, code_a_id):
+        print(f'{code_a_id}: end of run_query, '
+                  'concat df\'s and remove ' 
+                  'duplicates')
+        len_df = len(
+            self.df_by_a_id(df, code_a_id))
+        len_dfb = len(
+            self.df_by_a_id(df_base, code_a_id))
+        print(f'{code_a_id}: length df: {len_df}, '
+                  f'{code_a_id}: length df_base: '
+                  f'{len_dfb}')
+        dfc = pd.concat([df, df_base],
+            ignore_index=True).drop_duplicates()
+        len_dfc = len(
+            self.df_by_a_id(dfc, code_a_id))
+        print(
+            f'{code_a_id}: length final df: {len_dfc}')
+        return dfc
+        
+    def get_headers(self, code):
+         STRAVA_CLIENT_ID = self.config.get(
+             'strava', 'STRAVA_CLIENT_ID')
+         STRAVA_CLIENT_SECRET = \
+             self.config.get(
+             'strava', 'STRAVA_CLIENT_SECRET')
+         client = Client()
+         access_dict = \
+             client.exchange_code_for_token(
+                 client_id= STRAVA_CLIENT_ID,
+                 client_secret=\
+                     STRAVA_CLIENT_SECRET,
+                 code= code)
+         token = access_dict.get(
+             "access_token", '')
+         headers = {
+             'Authorization':
+             "Bearer {0}".format(token)}
+         return headers
+
+    def run_athlete_query(self):
+        r = requests.get(
+            "https://www.strava.com/api/"
+            "v3/athlete",
+             headers = self.headers).json()
+        return r['id']
+        
+    def run_activities_query(
+        self, page, df, a_id, final_time):
+        data_end = False
+        response = requests.get(
+            "https://www.strava.com/api/v3/"
+            f"athlete/activities?page={page}",
+            headers = self.headers).json()
+        for r in response:
+            try:
+                code_final_time = \
+                    datetime.strptime(
+                    r.get('start_date_local'),
+                    "%Y-%m-%dT%H:%M:%SZ")
+                if code_final_time <= final_time:
+                    data_end = True
+                    print(f'{a_id}: Data is now ' 
+                              'complete. Breaking from '
+                              'response loop')
+                    break
+            except:
+                print(f'Issue. Response json: {r}')
+            df_r = self.reduce_response(r)
+            df = pd.concat([df, df_r],     
+                ignore_index=True)
+        print(f'{a_id}: Page {page} has ' 
+                  f'{len(response)} data points')
+        if len(response) == 0:
+            print(f'{a_id}: Finished gathering data '
+                      f'for page: {page}')
+            data_end = True
+        return df, data_end
+
+    def reduce_response(self, r):
+        r.pop('start_latlng', None)
+        r.pop('end_latlng', None)
+        df = pd.DataFrame(
+            flatten(r, reducer='path'), index=[0])
+        df = df[[c for c in df.columns if c in \
+            self.col_names]]
+        return df
+
+    def save_pickle(self, df, a_id):
+        df = self.df_by_a_id(df, a_id)
+        folder = 'athlete_data_local/'
+        fname = f'data_{str(a_id)}.pickle'
+        print(f'Saving as {folder}{fname}')
+        df.to_pickle(f'{folder}{fname}')
+
+class Map:
+    def __init__(self):
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
+        self.m = folium.Map()
+        self.colors = self.config.get(
+            'map', 'colors').split(', ')
+        self.stroke_width = [
+            int(x) for x in self.config.get(
+            'map', 'stroke_width').split(', ')]
+        self.opacity = [
+            int(x) for x in self.config.get(
+            'map', 'opacity').split(', ')]
+        self.dash_array = [
+            int(x) for x in self.config.get(
+            'map', 'dash_array').split(', ')]
+        self.athlete_count = 0
+        self.athlete_ids_list = []
+        self.athlete_colors = {}
+        self.athlete_stroke_width = {}
+        self.athlete_opacity = {}
+        self.athlete_dash_array = {}
+        self.athlete_lines = {}
+        self.font_size = float(
+            self.config.get('map', 'font_size'))
+        self.dist_conv = float(
+            self.config.get('units', 'dist_conv'))
+        self.elev_conv = float(
+            self.config.get('units', 'elev_conv'))
+        self.dist_label = self.config.get(
+            'units', 'dist_label')
+        self.elev_label = self.config.get(
+            'units', 'elev_label')
+        self.emoji = self.config._sections[
+            'map_emoji']
+        self.CD = CountryData()
+        self.df_c = \
+            self.CD.get_country_centroids()
+
+    def run(self, http_with_code):
+        pickles = self.get_local_pickle_files()
+        S = StravaData(pickles, http_with_code)
+        df = S.run().dropna(
+            subset=['map/summary_polyline'])
+        a_ids = S.get_a_id_list(df)
+        print(f'Set up folium map for {len(a_ids)} '
+            'athletes')
+        for a_id in a_ids:
+            self.add_athlete(S.df_by_a_id(df, a_id))
+        if len(a_ids) > 0:
+            self.create_lines(df, a_ids)
+            self.create_country_summaries(df)
+            self.create_map()
+     
+    def get_local_pickle_files(self):
+        pwd = Path.cwd()
+        pickle_folder = self.config.get(
+            'path', 'pickle_folder')
+        pickles = glob.glob(
+            f'{pwd}/{pickle_folder}/*')
+        print(f'local pickle files: {pickles}')
+        return pickles
+
+    def get_popup(self, df, country):
+        popup = {
+            'Athlete':[],
+            'Number of Rides': [],
+            f'Distance ({self.dist_label})':[],
+            f'Total Elevation ({self.elev_label})': [],
+            'Administrative Areas Visited':[]}
+        dfc = df[df.country_admin.apply(
+            str).str.contains(country)]
+        if len(dfc) == 0:
+            return ''
+        for a_id in self.athlete_ids_list:
+            dfa = dfc[dfc['athlete/id']== a_id]
+            count = len(dfa)
+            if count == 0:
+                continue
+            dist = round(dfa['distance'].sum())
+            elev = round(
+                dfa['total_elevation_gain'].sum())
+            adm_ratio = \
+                self.CD.get_admin_tracking(
+                dfa, country)
+            popup['Athlete'].append(a_id)
+            popup['Number of Rides'].append(
+                count)
+            popup[
+                f'Distance ({self.dist_label})'
+            ].append(dist)
+            popup[
+                f'Total Elevation ({self.elev_label})'
+            ].append(elev)
+            popup['Administrative Areas Visited'
+                ].append(adm_ratio)
+        dfp = pd.DataFrame(popup)
+        tablea = build_table(
+            dfp,
+            'blue_light',
+            font_size= f'{self.font_size}px',
+            text_align= 'center')
+        return (
+            f'<h3>{country}</h3>'
+            f'{tablea}<br>')
+
+    def create_country_summaries(self, df):
+         for _, row in self.df_c.iterrows():
+             country = row['name']
+             popup = self.get_popup(df, country)
+             if len(popup) == 0:
+                 continue
+             mk = folium.Marker(
+                 location=[row.latitude,
+                                   row.longitude],
+                 icon= folium.features.CustomIcon(
+                     icon_image= r"icon.png",
+                     icon_size=(10,10),
+                     icon_anchor=(0,0),
+                     popup_anchor=(0,0)),
+                 popup=folium.Popup(
+                     popup,
+                     style=(
+                        "background-color: white; "                                     "color: #333333; "
+                        "font-family: arial; "
+                        f"font-size: {self.font_size}px; "
+                        "padding: 3px;"
+                        "min_width: 6000")))
+             self.m.add_child(mk)
+        
+    def add_athlete(self, df):
+        a_id = list(df.get('athlete/id', '0'))[0]
+        ac_print = self.athlete_count +1
+        print(f'new athlete line: {a_id}, '
+                  f'athlete count: {ac_print}')
+        self.athlete_ids_list.append(a_id)
+        self.athlete_colors[a_id] = \
+            self.colors[self.athlete_count]
+        self.athlete_stroke_width[a_id] = \
+            self.stroke_width[self.athlete_count]
+        self.athlete_opacity[a_id] = \
+            self.opacity[self.athlete_count]
+        self.athlete_dash_array[a_id] = \
+            self.dash_array[self.athlete_count]
+        self.athlete_count += 1
+        
+    def get_emoji(self, the_type):
+        if the_type.lower() in self.emoji:
+            return self.emoji[the_type.lower()]
+        else:
+            return self.emoji['other']
+     
+    def get_link(self, id):
+        url = ('https://www.strava.com'
+                  f'/activities/{id}')
+        return f'<a href="{url}">Strava link</a>'
+
+    def get_athlete_stroke_width(self, a_id):
+        return self.athlete_stroke_width[a_id]
+
+    def get_athlete_color(self, a_id):
+        return self.athlete_colors[a_id]
+        
+    def get_athlete_opacity(self, a_id):
+        return self.athlete_opacity[a_id]
+        
+    def get_athlete_dash_array(self, a_id):
+        return self.athlete_dash_array[a_id]
+
+    def create_lines(self, df, a_ids):
+        df['emoji'] = df['type'].apply(self.get_emoji)
+        df['link'] = df['id'].apply(self.get_link)
+        df['distance'] = round(df['distance'] * \
+            self.dist_conv)
+        df['total_elevation_gain'] = round(
+            df['total_elevation_gain'] * \
+            self.elev_conv)
+        df['color'] = df['athlete/id'].apply(
+            self.get_athlete_color)
+        df['stroke_width'] = df['athlete/id'].apply(
+            self.get_athlete_stroke_width)
+        df['opacity'] = df['athlete/id'].apply(
+            self.get_athlete_opacity)
+        df['dash_array'] = df['athlete/id'].apply(
+            self.get_athlete_dash_array)
+        for a_id in a_ids:
+            self.m.add_child(self.create_geo_json(
+            df[df['athlete/id']==a_id], a_id))
+        self.m.add_child(folium.LayerControl(
+            position='topright',
+            collapsed=True,
+            autoZIndex=True))
+
+    def get_feature(self, x):
+        coords = [(c[1], c[0]) for c in x['coords']]
+        return ({
+            'type': 'Feature',
+            'properties': {
+                'stroke': x['color'],
+                'stroke-width': x['stroke_width'],
+                'stroke-opacity': x['opacity'],
+                'dashArray-highlight': '10, 1',
+                'dashArray': x['dash_array'],
+                'name': x['name'],
+                'distance':
+                    f"{x['distance']} {self.dist_label}",
+                'total_elevation_gain':
+                    f"{x['total_elevation_gain']} "
+                    f"{self.elev_label}",
+                'emoji': x['emoji'],
+                'link': x['link'],
+                'type': x['type']},
+            'geometry': {
+                 'type': 'LineString',
+                 'coordinates': coords}})
+
+    def create_geo_json(self, df, a_id):
+        features = [] 
+        for _, row in df.iterrows():
+            features.append(self.get_feature(row))
+        gj = {'type': 'FeatureCollection',
+                 'name': 'strava',
+                 'features': features}
+        sf = lambda x:{
+          'color': x['properties']['stroke'],
+          'opacity' : x['properties']['stroke-opacity'],
+          'dashArray' : x['properties']['dashArray'],
+          'weight': x['properties']['stroke-width']
+        }
+        hf = lambda x: {
+          'color': x['properties']['stroke'],
+          'opacity' : x['properties']['stroke-opacity'],
+          'dashArray' : x['properties'][
+              'dashArray-highlight'],
+          'weight': x['properties']['stroke-width']
+        }
+        return(folium.features.GeoJson(
+            gj,
+            name = a_id,
+            control = True,
+            style_function = sf,
+            highlight_function = hf,
+            popup = \
+                folium.features.GeoJsonPopup(
+                    fields=[
+                        'name',
+                        'emoji',
+                        'distance',
+                        'total_elevation_gain',
+                        'link'],
+                    aliases=[
+                        'Name: ',
+                        'Type: ',
+                        'Distance: ', 
+                        'Total Elevation Gain: ',
+                        'Link: '],
+                    style=(
+                        "background-color: white; "                                     "color: #333333; "
+                        "font-family: arial; "
+                        f"font-size: {self.font_size}px; "
+                        "padding: 3px;"))))
+        
+    def create_map(self):
+        output_folder = self.config.get(
+            'path', 'output_folder')
+        a_id_str = '_'.join(
+            str(i) for i in self.athlete_ids_list)
+        print('Saving folium html map as '                                   f'{output_folder}/'
+                  f'route_{a_id_str}.html')
+        self.m.save(
+            f'{output_folder}/route_{a_id_str}.html')
+        
+
+if __name__ == "__main__":
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=8332c7c49955e267ae4338d582270b08f79f307d&scope=read,activity:read_all'
+     M = Map()
+     M.run(http_with_code)
