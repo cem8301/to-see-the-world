@@ -4,11 +4,11 @@ Python script to display Strava activities on one map! Can be used to see everyw
 ## Intentions:
 - Fun project while traveling by bicycle long term
 - Be able to display multiple athletes at once
-- Include fun metrics!
+- Include interesting metrics
 - Simple
     - Write and run code 100% on my phone
     - Possible to code without internet, or gather data with basic internet
-    - Free to develop, no servers or hostnames. It's a carry forward of this project (https://github.com/cem8301/all-of-the-trails) but more versitile
+    - Free to develop, no servers or hostnames. It's a carry forward of this [all-of-the-trails project] (https://github.com/cem8301/all-of-the-trails) but more versitile
     - Runs fast
     - User friendly (I hope :smile:)
 
