@@ -18,10 +18,7 @@ from thefuzz import process, fuzz
 
 
 class CountryData:
-    def __init__(
-        self,
-        fname_cc ='country_centroids.csv',
-        fname_wad='world_admin_divisions.csv'):
+    def __init__(self, fname_cc, fname_wad):
         self.df_cc = pd.read_csv(fname_cc)
         self.df_wad = pd.read_csv(
             fname_wad).fillna('unknown')
@@ -315,10 +312,11 @@ class StravaData:
 
     def save_pickle(self, df, a_id):
         df = self.df_by_a_id(df, a_id)
-        folder = 'athlete_data_local/'
+        folder = self.config.get(
+            'path', 'athlete_data_folder')
         fname = f'data_{str(a_id)}.pickle'
-        print(f'Saving as {folder}{fname}')
-        df.to_pickle(f'{folder}{fname}')
+        print(f'Saving as {folder}/{fname}')
+        df.to_pickle(f'{folder}/{fname}')
 
 class Map:
     def __init__(self):
@@ -355,7 +353,14 @@ class Map:
             'units', 'elev_label')
         self.emoji = self.config._sections[
             'map_emoji']
-        self.CD = CountryData()
+        fname_cc = self.config.get(
+            'path',
+            'fname_country_centroids')
+        fname_wad = self.config.get(
+            'path',
+            'fname_world_administrative_divisions')
+        self.CD = CountryData(
+            fname_cc, fname_wad)
         self.df_c = \
             self.CD.get_country_centroids()
 
@@ -436,7 +441,8 @@ class Map:
                  location=[row.latitude,
                                    row.longitude],
                  icon= folium.features.CustomIcon(
-                     icon_image= r"icon.png",
+                     icon_image= self.config.get(
+                         'path', 'map_icon'),
                      icon_size=(10,10),
                      icon_anchor=(0,0),
                      popup_anchor=(0,0)),
@@ -594,6 +600,6 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=8332c7c49955e267ae4338d582270b08f79f307d&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=ef0cfb036724b492bfefb3fe086c9676704f8a87&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code)
