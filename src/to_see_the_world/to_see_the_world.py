@@ -404,9 +404,9 @@ class Map:
             count = len(dfa)
             if count == 0:
                 continue
-            dist = round(dfa['distance'].sum())
+            dist = round(dfa['distance'].sum(), 1)
             elev = round(
-                dfa['total_elevation_gain'].sum())
+                dfa['total_elevation_gain'].sum(), 0)
             adm_ratio = \
                 self.CD.get_admin_tracking(
                 dfa, country)
@@ -499,10 +499,10 @@ class Map:
         df['emoji'] = df['type'].apply(self.get_emoji)
         df['link'] = df['id'].apply(self.get_link)
         df['distance'] = round(df['distance'] * \
-            self.dist_conv)
+            self.dist_conv, 1)
         df['total_elevation_gain'] = round(
             df['total_elevation_gain'] * \
-            self.elev_conv)
+            self.elev_conv, 0)
         df['color'] = df['athlete/id'].apply(
             self.get_athlete_color)
         df['stroke_width'] = df['athlete/id'].apply(
