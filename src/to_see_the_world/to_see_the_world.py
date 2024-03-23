@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 import configparser
 from datetime import datetime
-from flatten_dict import flatten
 import glob
 from pathlib import Path
-import os
 import re
-import requests
 
+from flatten_dict import flatten
 import folium
 import pandas as pd
 import polyline
 from pretty_html_table import build_table
+import requests
 import reverse_geocoder as rg
 from stravalib import Client
-from thefuzz import process, fuzz
 
 
 class CountryData:
@@ -79,7 +77,8 @@ class CountryData:
             self.df_wad.country.str.contains(
             country)].name
         if len(tot_country_adm) == 0:
-            print(country)
+            #print(country)
+            pass
         return(f'{len(a_adm)}/'
                     f'{len(tot_country_adm)}')
                     #f'{", ".join(a_adm)}')
