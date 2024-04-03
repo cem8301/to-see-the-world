@@ -10,6 +10,5 @@ pytz==2023.3.post1
 requests==2.31.0
 reverse-geocoder==1.5.1
 stravalib==1.5
-thefuzz==0.22.1
 tzdata==2023.3
 xyzservices==2023.10.1
