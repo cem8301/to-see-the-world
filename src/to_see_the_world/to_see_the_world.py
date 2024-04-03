@@ -1,27 +1,23 @@
 #!/usr/bin/env python3
 import configparser
 from datetime import datetime
-from flatten_dict import flatten
 import glob
 from pathlib import Path
-import os
 import re
-import requests
 
+from flatten_dict import flatten
 import folium
 import pandas as pd
 import polyline
 from pretty_html_table import build_table
+import requests
 import reverse_geocoder as rg
 from stravalib import Client
-from thefuzz import process, fuzz
+import xyzservices.providers as xyz
 
 
 class CountryData:
-    def __init__(
-        self,
-        fname_cc ='country_centroids.csv',
-        fname_wad='world_admin_divisions.csv'):
+    def __init__(self, fname_cc, fname_wad):
         self.df_cc = pd.read_csv(fname_cc)
         self.df_wad = pd.read_csv(
             fname_wad).fillna('unknown')
@@ -82,7 +78,8 @@ class CountryData:
             self.df_wad.country.str.contains(
             country)].name
         if len(tot_country_adm) == 0:
-            print(country)
+            #print(country)
+            pass
         return(f'{len(a_adm)}/'
                     f'{len(tot_country_adm)}')
                     #f'{", ".join(a_adm)}')
@@ -93,6 +90,8 @@ class StravaData:
         self, pickles='', http_with_code=''):
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
+        self.secrets = configparser.ConfigParser()
+        self.secrets.read('secrets.ini')
         self.pickles = pickles
         self.code = \
             self.get_code_from_http_string(
@@ -246,10 +245,10 @@ class StravaData:
         return dfc
         
     def get_headers(self, code):
-         STRAVA_CLIENT_ID = self.config.get(
+         STRAVA_CLIENT_ID = self.secrets.get(
              'strava', 'STRAVA_CLIENT_ID')
          STRAVA_CLIENT_SECRET = \
-             self.config.get(
+             self.secrets.get(
              'strava', 'STRAVA_CLIENT_SECRET')
          client = Client()
          access_dict = \
@@ -315,16 +314,28 @@ class StravaData:
 
     def save_pickle(self, df, a_id):
         df = self.df_by_a_id(df, a_id)
-        folder = 'athlete_data_local/'
+        folder = self.config.get(
+            'path', 'athlete_data_folder')
         fname = f'data_{str(a_id)}.pickle'
-        print(f'Saving as {folder}{fname}')
-        df.to_pickle(f'{folder}{fname}')
+        print(f'Saving as {folder}/{fname}')
+        df.to_pickle(f'{folder}/{fname}')
 
 class Map:
     def __init__(self):
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
         self.m = folium.Map()
+        selection = self.config.get(
+            'map', 'tiles').split(', ')
+        providers = xyz.flatten()
+        for tiles_name in selection:
+            tiles = providers[tiles_name]
+            folium.TileLayer(
+                tiles=tiles.build_url(),
+                attr=tiles.html_attribution,
+                name=tiles.name,
+                show=False
+            ).add_to(self.m)
         self.colors = self.config.get(
             'map', 'colors').split(', ')
         self.stroke_width = [
@@ -355,7 +366,14 @@ class Map:
             'units', 'elev_label')
         self.emoji = self.config._sections[
             'map_emoji']
-        self.CD = CountryData()
+        fname_cc = self.config.get(
+            'path',
+            'fname_country_centroids')
+        fname_wad = self.config.get(
+            'path',
+            'fname_world_administrative_divisions')
+        self.CD = CountryData(
+            fname_cc, fname_wad)
         self.df_c = \
             self.CD.get_country_centroids()
 
@@ -372,8 +390,15 @@ class Map:
         if len(a_ids) > 0:
             self.create_lines(df, a_ids)
             self.create_country_summaries(df)
+            self.add_layer_control()
             self.create_map()
      
+    def add_layer_control(self):
+        self.m.add_child(folium.LayerControl(
+            position='topright',
+            collapsed=True,
+            autoZIndex=True))
+    
     def get_local_pickle_files(self):
         pwd = Path.cwd()
         pickle_folder = self.config.get(
@@ -382,6 +407,31 @@ class Map:
             f'{pwd}/{pickle_folder}/*')
         print(f'local pickle files: {pickles}')
         return pickles
+
+    def create_country_summaries(self, df):
+         for _, row in self.df_c.iterrows():
+             country = row['name']
+             popup = self.get_popup(df, country)
+             if len(popup) == 0:
+                 continue
+             mk = folium.Marker(
+                 location=[row.latitude,
+                                   row.longitude],
+                 icon= folium.features.CustomIcon(
+                     icon_image= self.config.get(
+                         'map', 'map_icon'),
+                     icon_size=(10,10),
+                     icon_anchor=(0,0),
+                     popup_anchor=(0,0)),
+                 popup=folium.Popup(
+                     popup,
+                     style=(
+                        "background-color: white; "                                     "color: #333333; "
+                        "font-family: arial; "
+                        f"font-size: {self.font_size}px; "
+                        "padding: 3px;"
+                        "min_width: 6000")))
+             self.m.add_child(mk)
 
     def get_popup(self, df, country):
         popup = {
@@ -399,9 +449,9 @@ class Map:
             count = len(dfa)
             if count == 0:
                 continue
-            dist = round(dfa['distance'].sum())
+            dist = round(dfa['distance'].sum(), 1)
             elev = round(
-                dfa['total_elevation_gain'].sum())
+                dfa['total_elevation_gain'].sum(), 0)
             adm_ratio = \
                 self.CD.get_admin_tracking(
                 dfa, country)
@@ -425,30 +475,6 @@ class Map:
         return (
             f'<h3>{country}</h3>'
             f'{tablea}<br>')
-
-    def create_country_summaries(self, df):
-         for _, row in self.df_c.iterrows():
-             country = row['name']
-             popup = self.get_popup(df, country)
-             if len(popup) == 0:
-                 continue
-             mk = folium.Marker(
-                 location=[row.latitude,
-                                   row.longitude],
-                 icon= folium.features.CustomIcon(
-                     icon_image= r"icon.png",
-                     icon_size=(10,10),
-                     icon_anchor=(0,0),
-                     popup_anchor=(0,0)),
-                 popup=folium.Popup(
-                     popup,
-                     style=(
-                        "background-color: white; "                                     "color: #333333; "
-                        "font-family: arial; "
-                        f"font-size: {self.font_size}px; "
-                        "padding: 3px;"
-                        "min_width: 6000")))
-             self.m.add_child(mk)
         
     def add_athlete(self, df):
         a_id = list(df.get('athlete/id', '0'))[0]
@@ -493,10 +519,10 @@ class Map:
         df['emoji'] = df['type'].apply(self.get_emoji)
         df['link'] = df['id'].apply(self.get_link)
         df['distance'] = round(df['distance'] * \
-            self.dist_conv)
+            self.dist_conv, 1)
         df['total_elevation_gain'] = round(
             df['total_elevation_gain'] * \
-            self.elev_conv)
+            self.elev_conv, 0)
         df['color'] = df['athlete/id'].apply(
             self.get_athlete_color)
         df['stroke_width'] = df['athlete/id'].apply(
@@ -507,11 +533,7 @@ class Map:
             self.get_athlete_dash_array)
         for a_id in a_ids:
             self.m.add_child(self.create_geo_json(
-            df[df['athlete/id']==a_id], a_id))
-        self.m.add_child(folium.LayerControl(
-            position='topright',
-            collapsed=True,
-            autoZIndex=True))
+                df[df['athlete/id']==a_id], a_id))
 
     def get_feature(self, x):
         coords = [(c[1], c[0]) for c in x['coords']]
@@ -594,6 +616,6 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=8332c7c49955e267ae4338d582270b08f79f307d&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=ee7547b162c651a05e0960fb2b6cbcd3a0c71f34&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code)
