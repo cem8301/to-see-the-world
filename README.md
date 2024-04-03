@@ -98,7 +98,7 @@ Create the Strava authorization link, gather the http link with code, run!, loca
 ### Create the Strava authorization link
 In order to gather data, the Strava API requires user authentification. First, replace the string **STRAVA_CLIENT_ID** in the link with your new id from the section above.
 
-```https://www.strava.com/oauth/authorize?client_id=STRAVA_CLIENT_ID &response_type=code&redirect_uri=https://www.localhost.com/exchange_token&approval_prompt=force&scope=activity:read_all)```
+```https://www.strava.com/oauth/authorize?client_id=STRAVA_CLIENT_ID&response_type=code&redirect_uri=https://www.localhost.com/exchange_token&approval_prompt=force&scope=activity:read_all```
 
 Paste this link in your browser to authenticate.
 Your page should look like this:

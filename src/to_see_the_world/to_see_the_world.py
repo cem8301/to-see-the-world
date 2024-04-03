@@ -317,6 +317,9 @@ class StravaData:
         folder = self.config.get(
             'path', 'athlete_data_folder')
         fname = f'data_{str(a_id)}.pickle'
+        path = Path(folder)
+        if not path.exists():
+            path.mkdir(parents=True)
         print(f'Saving as {folder}/{fname}')
         df.to_pickle(f'{folder}/{fname}')
 
@@ -609,13 +612,16 @@ class Map:
             'path', 'output_folder')
         a_id_str = '_'.join(
             str(i) for i in self.athlete_ids_list)
-        print('Saving folium html map as '                                   f'{output_folder}/'
-                  f'route_{a_id_str}.html')
+        path = Path(output_folder)
+        if not path.exists():
+            path.mkdir(parents=True)
+        print('Saving folium html map as '
+                 f'{output_folder}/route_{a_id_str}.html')
         self.m.save(
             f'{output_folder}/route_{a_id_str}.html')
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=ee7547b162c651a05e0960fb2b6cbcd3a0c71f34&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=d87150d6d7f404f1c40a8c7103b2eeb9d9019fb9&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code)
