@@ -540,6 +540,7 @@ class Map:
 
     def get_feature(self, x):
         coords = [(c[1], c[0]) for c in x['coords']]
+        start_date_local = datetime. strptime(x['start_date_local'], '%Y-%m-%dT%H:%M:%SZ').strftime('%B %d, %Y')
         return ({
             'type': 'Feature',
             'properties': {
@@ -548,6 +549,7 @@ class Map:
                 'stroke-opacity': x['opacity'],
                 'dashArray-highlight': '10, 1',
                 'dashArray': x['dash_array'],
+                'start_date_local': start_date_local,
                 'name': x['name'],
                 'distance':
                     f"{x['distance']} {self.dist_label}",
@@ -590,12 +592,14 @@ class Map:
             popup = \
                 folium.features.GeoJsonPopup(
                     fields=[
+                        'start_date_local',
                         'name',
                         'emoji',
                         'distance',
                         'total_elevation_gain',
                         'link'],
                     aliases=[
+                        'Date: ',
                         'Name: ',
                         'Type: ',
                         'Distance: ', 
