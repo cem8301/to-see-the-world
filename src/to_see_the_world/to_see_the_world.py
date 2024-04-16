@@ -7,6 +7,7 @@ import re
 
 from flatten_dict import flatten
 import folium
+from folium.plugins import TimestampedGeoJson
 import pandas as pd
 import polyline
 from pretty_html_table import build_table
@@ -392,6 +393,7 @@ class Map:
             self.add_athlete(S.df_by_a_id(df, a_id))
         if len(a_ids) > 0:
             self.create_lines(df, a_ids)
+            self.create_athlete_slider(df)
             self.create_country_summaries(df)
             self.add_layer_control()
             self.create_map()
@@ -537,6 +539,40 @@ class Map:
         for a_id in a_ids:
             self.m.add_child(self.create_geo_json(
                 df[df['athlete/id']==a_id], a_id))
+
+    def create_athlete_slider(self, df):
+        data = []
+        for _, row in df.iterrows():
+            data.append({
+                'color': row['color'],
+                'lon': row['coords'][0][1],
+                'lat': row['coords'][0][0],
+                'times': row['start_date_local']})
+        features = [{
+            'type': 'Feature',
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [d['lon'], d['lat']]},
+            'properties': {
+                'style': {'color' : 'magenta'},
+                'icon': 'circle',
+                'iconstyle':{
+                    'fillOpacity': 0.8,
+                    'fillColor': ['green'],
+                    'stroke': 'true',
+                    'radius': 5},
+                'times': [d['times']]}} for d in data]
+        gj = {'type': 'FeatureCollection',
+                 'name': 'moving',
+                 'features': features}
+        return TimestampedGeoJson(
+            gj,
+            period = 'P1D',
+            duration = 'P1D',
+            loop = False,
+            auto_play = False,
+            add_last_point = True
+        ).add_to(self.m)
 
     def get_feature(self, x):
         coords = [(c[1], c[0]) for c in x['coords']]

@@ -93,7 +93,7 @@ Once your environment is setup, you are ready to run!
 
 ## How to Authorize and Run
 **tldr; 5-10min**
-Create the Strava authorization link, gather the http link with code, run!, located the output, notes for future runs
+Create the Strava authorization link, gather the http link with code, run!, locate the output, notes for future runs
 
 ### Create the Strava authorization link
 In order to gather data, the Strava API requires user authentification. First, replace the string **STRAVA_CLIENT_ID** in the link with your new id from the section above.
@@ -115,7 +115,7 @@ Take the link you coppied and paste it at the very bottom of your local **to_see
 At this point, you are ready to run the code. Hit the yellow arrow in the **to_see_the_world.py** file and wait. Watch the output and look for the line **Authorization code was successful**. Now we are connected with Strava and data collection can begin. Your output should look similar to this:
 ![Alt text](docs/auth/Auth5.jpg)
 
-### Locate output
+### Locate the output
 When the code finishes two files will be output. One **athlete_data_local/data_17432968.pickle** file and one **output/route_17432968.html** file.
 ![Alt text](docs/auth/Auth6.jpg)
 The html file is your map! Click on it and open in your web browser. That is it! You have a map and local data!
@@ -130,10 +130,8 @@ The pickle file stores the useful information gathered via the Strava API. This 
 - [ ] Use admin type name to differntiate between states, provinces, etc. ie, US has 50 states, a federal district, minor outlying islands, and unicorperated territories. The number ofbadmin areas shows up as 60, which is confusing
 - [ ] Specificly print out which admin areas have been visited. Means you can do a quick look, to name which exact admin areas you have visited
 - [ ] Use the full set of coordinates to specify mileage in each admin area? Not sure if that will work
-- [ ] Add a timeslider with a fun icon to fly around the map and show where you were at different times. Could be super neat if you have two people flying around on their own maps at once too. Leaving the [link](https://python-visualization.github.io/folium/latest/user_guide/plugins/timeslider_choropleth.html) to return to
 - [ ] Looks like it is possible to highlight regions you have visited? Maybe too much, but maybe neat. Leaving the [link](https://medium.com/vahaninc/geospatial-data-analysis-using-python-libraries-4c0367e1e824) to return to
 - [ ] Put country summary markers into feature groups and only show them when the rider is highlighted. I think that would look neater
-- [ ] Add activity date to the line selection tooltip
 - [ ] Add map function to only display bike certain bikes! or activity types
 - [ ] Option to add in other gpx files from sources other than Strava. I have several tours that were not recorded.
 
