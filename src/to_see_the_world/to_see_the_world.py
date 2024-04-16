@@ -393,7 +393,7 @@ class Map:
             self.add_athlete(S.df_by_a_id(df, a_id))
         if len(a_ids) > 0:
             self.create_lines(df, a_ids)
-            self.create_athlete_slider(df, a_ids)
+            self.create_athlete_slider(df)
             self.create_country_summaries(df)
             self.add_layer_control()
             self.create_map()
@@ -540,7 +540,7 @@ class Map:
             self.m.add_child(self.create_geo_json(
                 df[df['athlete/id']==a_id], a_id))
 
-    def create_athlete_slider(self, df, a_ids):
+    def create_athlete_slider(self, df):
         data = []
         for _, row in df.iterrows():
             data.append({
