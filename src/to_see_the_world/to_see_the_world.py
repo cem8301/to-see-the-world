@@ -14,6 +14,7 @@ from pretty_html_table import build_table
 import requests
 import reverse_geocoder as rg
 from stravalib import Client
+from thefuzz import process, fuzz
 import xyzservices.providers as xyz
 
 
@@ -22,21 +23,47 @@ class CountryData:
         self.df_cc = pd.read_csv(fname_cc)
         self.df_wad = pd.read_csv(
             fname_wad).fillna('unknown')
+        self.ratio = 70
         
     def get_country_centroids(self):
         return self.df_cc[['name',
                                         'latitude',
                                         'longitude']]
 
-    def get_data_admin_areas(self, df, country):
-        country_admin = list(df['country_admin'])
-        ca = [ca for cas in country_admin
+    def get_visited_adm_areas(self, df, country):
+        ca = [ca for cas in list(df['country_admin'])
             for ca in cas]
         df_ca = pd.DataFrame(
             ca, columns=['country', 'admin'])
         strings = set(df_ca[
             df_ca.country == country]['admin'])
         return [x for x in strings if x]
+     
+    def get_adm_areas_remain(
+        self, adm_visit, tot_country_adm):
+        adm_visit.sort()
+        tot_country_adm.sort()
+        adm_remain = tot_country_adm
+        for visit in adm_visit:
+            matches = process.extract(
+                visit, tot_country_adm, scorer=fuzz.ratio)
+            if matches:
+                first_match = matches[0]
+                if first_match[1] >= self.ratio:
+                    adm_area = first_match[0]
+                else:
+                    for match in matches:
+                        adm_area = match[0]
+                        if fuzz.partial_ratio(
+                            visit, adm_area) >= self.ratio:
+                            break
+                        else:
+                            adm_area = 'no match'
+            else:
+                adm_area = 'no match'
+            adm_remain = [
+                i for i in adm_remain if i != adm_area]
+        return adm_remain
         
     def get_geo(self, df, slice=1):
         dfe = df[['id','coords']].explode(
@@ -73,18 +100,19 @@ class CountryData:
     def get_admin_tracking(self, df, country):
         #NAME,COUNTRY,ISO_CC,ADMINTYPE
         #Badakhshān,Afghanistan,AF,Province
-        a_adm = self.get_data_admin_areas(
+        adm_visit = self.get_visited_adm_areas(
             df, country)
         tot_country_adm = self.df_wad[
             self.df_wad.country.str.contains(
-            country)].name
+            country)].name.tolist()
+        adm_remain = self.get_adm_areas_remain(
+            adm_visit, tot_country_adm)
         if len(tot_country_adm) == 0:
             #print(country)
             pass
-        return(f'{len(a_adm)}/'
-                    f'{len(tot_country_adm)}')
-                    #f'{", ".join(a_adm)}')
-                    #f'{", ".join(tot_country_adm)}')
+        str_ratio = (f'{len(adm_visit)}/'
+                            f'{len(tot_country_adm)}')
+        return str_ratio, adm_visit, adm_remain
 
 class StravaData:
     def __init__(
@@ -177,7 +205,7 @@ class StravaData:
             polyline.decode)
         df_geo = self.CD.get_geo(df_code)
         df_code = pd.merge(
-            df_code ,df_geo, on='id', how='right')
+            df_code, df_geo, on='id', how='right')
         df_code.coords = \
             df_code.coords.apply(tuple)
         df_code.country_admin = \
@@ -444,7 +472,9 @@ class Map:
             'Number of Rides': [],
             f'Distance ({self.dist_label})':[],
             f'Total Elevation ({self.elev_label})': [],
-            'Administrative Areas Visited':[]}
+            'Administrative Areas Ratio':[],
+            'Administrative Areas Visited':[],
+            'Administrative Areas Remain':[]}
         dfc = df[df.country_admin.apply(
             str).str.contains(country)]
         if len(dfc) == 0:
@@ -457,7 +487,7 @@ class Map:
             dist = round(dfa['distance'].sum(), 1)
             elev = round(
                 dfa['total_elevation_gain'].sum(), 0)
-            adm_ratio = \
+            adm_ratio, adm_visit, adm_remain = \
                 self.CD.get_admin_tracking(
                 dfa, country)
             popup['Athlete'].append(a_id)
@@ -469,14 +499,23 @@ class Map:
             popup[
                 f'Total Elevation ({self.elev_label})'
             ].append(elev)
-            popup['Administrative Areas Visited'
+            popup['Administrative Areas Ratio'
                 ].append(adm_ratio)
+            popup['Administrative Areas Visited'
+                ].append(adm_visit)
+            popup['Administrative Areas Remain'
+                ].append(adm_remain)
         dfp = pd.DataFrame(popup)
         tablea = build_table(
             dfp,
             'blue_light',
+            padding = '0px 10px 0px 0px',
             font_size= f'{self.font_size}px',
             text_align= 'center')
+        tablea = tablea.replace('[',
+             '<details><summary>Click to toggle</summary><span>')
+        tablea = tablea.replace(']', 
+            '</span></details>')
         return (
             f'<h3>{country}</h3>'
             f'{tablea}<br>')
@@ -662,6 +701,6 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=d87150d6d7f404f1c40a8c7103b2eeb9d9019fb9&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=27b6de3754940fe8406f0905a6e3d6d852519a4e&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code)
