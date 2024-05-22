@@ -127,8 +127,7 @@ The pickle file stores the useful information gathered via the Strava API. This 
 - [ ] Distance vs time graph maybe as another html popup
 - [ ] Include word cloud that summarizes ride names in each country
 - [ ] Cleanup how country summaries are applied. My map shows that I have cycled in Georgia the country, when it was just Georgia that state
-- [ ] Use admin type name to differntiate between states, provinces, etc. ie, US has 50 states, a federal district, minor outlying islands, and unicorperated territories. The number ofbadmin areas shows up as 60, which is confusing
-- [ ] Specificly print out which admin areas have been visited. Means you can do a quick look, to name which exact admin areas you have visited
+- [ ] Use admin type name to differntiate between states, provinces, etc. ie, US has 50 states, a federal district, minor outlying islands, and unicorperated territories. The number of admin areas shows up as 60, which is confusing
 - [ ] Use the full set of coordinates to specify mileage in each admin area? Not sure if that will work
 - [ ] Looks like it is possible to highlight regions you have visited? Maybe too much, but maybe neat. Leaving the [link](https://medium.com/vahaninc/geospatial-data-analysis-using-python-libraries-4c0367e1e824) to return to
 - [ ] Put country summary markers into feature groups and only show them when the rider is highlighted. I think that would look neater
