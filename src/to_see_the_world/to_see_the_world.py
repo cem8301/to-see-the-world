@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from collections import Counter
 import configparser
 from datetime import datetime
 import glob
@@ -40,30 +41,38 @@ class CountryData:
         return [x for x in strings if x]
      
     def get_adm_areas_remain(
-        self, adm_visit, tot_country_adm):
+        self, adm_visit, tuple_adm):
         adm_visit.sort()
-        tot_country_adm.sort()
-        adm_remain = tot_country_adm
+        tuple_adm.sort()
+        list_adm = [x[0] for x in tuple_adm]
+        adm_remain = tuple_adm
+        visit_official = []
         for visit in adm_visit:
+            ans = False
             matches = process.extract(
-                visit, tot_country_adm, scorer=fuzz.ratio)
+                visit,
+                list_adm,
+                scorer=fuzz.ratio)
             if matches:
                 first_match = matches[0]
                 if first_match[1] >= self.ratio:
-                    adm_area = first_match[0]
+                    ans = (first_match[0],
+                                dict(tuple_adm)[first_match[0]])
                 else:
                     for match in matches:
-                        adm_area = match[0]
                         if fuzz.partial_ratio(
-                            visit, adm_area) >= self.ratio:
+                            visit, match[0]) >= self.ratio:
+                            ans = (match[0],
+                                        dict(tuple_adm)[match[0]])
                             break
-                        else:
-                            adm_area = 'no match'
+            if ans:
+                adm_remain = [
+                    i for i in adm_remain if i != ans]
+                visit_official.append(ans)
             else:
-                adm_area = 'no match'
-            adm_remain = [
-                i for i in adm_remain if i != adm_area]
-        return adm_remain
+                pass
+                #print(f'{visit} has no match')
+        return dict(adm_remain), dict(visit_official)
         
     def get_geo(self, df, slice=1):
         dfe = df[['id','coords']].explode(
@@ -104,15 +113,26 @@ class CountryData:
             df, country)
         tot_country_adm = self.df_wad[
             self.df_wad.country.str.contains(
-            country)].name.tolist()
-        adm_remain = self.get_adm_areas_remain(
-            adm_visit, tot_country_adm)
+            country)][['name', 'admin_type']]
+        tuple_adm = list(zip(
+            tot_country_adm.name,
+            tot_country_adm.admin_type))
+        adm_remain, visit_official =\
+            self.get_adm_areas_remain(
+            adm_visit, tuple_adm)
         if len(tot_country_adm) == 0:
             #print(country)
             pass
-        str_ratio = (f'{len(adm_visit)}/'
-                            f'{len(tot_country_adm)}')
-        return str_ratio, adm_visit, adm_remain
+        str_ratio = ''
+        for a in set(tot_country_adm['admin_type']):
+            num = len([
+                n for n in visit_official.values() if n==a])
+            den = len(tot_country_adm.get(
+                tot_country_adm.admin_type == a))
+            str_ratio += (f"{num}/{den} {a}'s\n")
+        return (str_ratio,
+            list(visit_official.keys()),
+            list(adm_remain.keys()))
 
 class StravaData:
     def __init__(
