@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from collections import Counter
 import configparser
 from datetime import datetime
 import glob
