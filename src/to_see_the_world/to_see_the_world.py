@@ -627,6 +627,7 @@ class Map:
             gj,
             period = 'P1D',
             duration = 'P1D',
+            max_speed = 30,
             loop = False,
             auto_play = False,
             add_last_point = True
@@ -720,6 +721,6 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=27b6de3754940fe8406f0905a6e3d6d852519a4e&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=7b331c102a29b1ff094a6032b509eb24068511ac&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code)
