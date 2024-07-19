@@ -35,9 +35,16 @@ class Utils:
         return pickles
     
     def setup_df(self):
-        
         return pd.DataFrame(
             columns = self.col_names)
+    
+    def create_base(self, pickles):
+         df_base = self.setup_df()
+         for pickle in pickles:
+             df_tmp = pd. read_pickle(pickle)
+             df_base = pd.concat(
+             [df_base, df_tmp], ignore_index=True)
+         return df_base
 
 class CountryData:
     def __init__(self, fname_cc, fname_wad):
@@ -182,7 +189,8 @@ class StravaData:
             'gear_id']
         self.col_names = self.config.get(
             'data', 'col_names').split(', ')
-        self.df_base = self.create_base()
+        self.df_base = self.U.create_base(
+            self.pickles)
         self.print_df_size_by_a_id(self.df_base)
         fname_cc = self.config.get(
             'path',
@@ -284,14 +292,6 @@ class StravaData:
             size = len(self.df_by_a_id(df, a_id))
             msg += f'a_id: {a_id}, size: {size}\n'
         print(msg)
-
-    def create_base(self):
-         df_base = self.U.setup_df()
-         for pickle in self.pickles:
-             df_tmp = pd. read_pickle(pickle)
-             df_base = pd.concat(
-             [df_base, df_tmp], ignore_index=True)
-         return df_base
 
     def clean_df(self, df_base, df, code_a_id):
         print(f'{code_a_id}: end of run_query, '
@@ -397,9 +397,8 @@ class Summary:
         self.pickles = self.U.get_local_pickle_files()
 
     def run(self):
-         df_base = self.U.setup_df()
-         for pickle in self.pickles:
-             df_tmp = pd. read_pickle(pickle)
+         df= self.U.create_base(self.pickles)
+         print(df)
         
 class Map:
     def __init__(self):
@@ -743,6 +742,6 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=4adcdd5fc26f420372db17922d91d3bcf536ddcf&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=cb88bef4c9175aa1008bd2f51019463e4471ad96&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code)
