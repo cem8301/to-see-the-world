@@ -18,6 +18,27 @@ from thefuzz import process, fuzz
 import xyzservices.providers as xyz
 
 
+class Utils:
+    def __init__(self):
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
+        self.pwd = Path.cwd()
+        self.col_names = self.config.get(
+            'data', 'col_names').split(', ')
+        
+    def get_local_pickle_files(self):
+        pickle_folder = self.config.get(
+            'path', 'pickle_folder')
+        pickles = glob.glob(
+            f'{self.pwd}/{pickle_folder}/*')
+        print(f'local pickle files: {pickles}')
+        return pickles
+    
+    def setup_df(self):
+        
+        return pd.DataFrame(
+            columns = self.col_names)
+
 class CountryData:
     def __init__(self, fname_cc, fname_wad):
         self.df_cc = pd.read_csv(fname_cc)
@@ -140,6 +161,7 @@ class StravaData:
         self.config.read('config.ini')
         self.secrets = configparser.ConfigParser()
         self.secrets.read('secrets.ini')
+        self.U = Utils()
         self.pickles = pickles
         self.code = \
             self.get_code_from_http_string(
@@ -158,6 +180,8 @@ class StravaData:
             'elev_high',
             'elev_low',
             'gear_id']
+        self.col_names = self.config.get(
+            'data', 'col_names').split(', ')
         self.df_base = self.create_base()
         self.print_df_size_by_a_id(self.df_base)
         fname_cc = self.config.get(
@@ -187,7 +211,7 @@ class StravaData:
         code_a_id = self.run_athlete_query()
         final_time = self.get_df_final_time(
             self.df_base, code_a_id)
-        df_code = self.setup_df()
+        df_code = self.U.setup_df()
         for page in range(1, page_count):
             df_code, data_end = \
                 self.run_activities_query(
@@ -230,10 +254,6 @@ class StravaData:
         df_code.country_admin = \
             df_code.country_admin.apply(tuple)
         return df_code
-        
-    def setup_df(self):
-        return pd.DataFrame(
-            columns = self.col_names)
     
     def get_a_id_list(self, df):
         return list(set(df.get('athlete/id', {0})))
@@ -266,7 +286,7 @@ class StravaData:
         print(msg)
 
     def create_base(self):
-         df_base = self.setup_df()
+         df_base = self.U.setup_df()
          for pickle in self.pickles:
              df_tmp = pd. read_pickle(pickle)
              df_base = pd.concat(
@@ -371,6 +391,16 @@ class StravaData:
         print(f'Saving as {folder}/{fname}')
         df.to_pickle(f'{folder}/{fname}')
 
+class Summary:
+    def __init__(self):
+        self.U = Utils()
+        self.pickles = self.U.get_local_pickle_files()
+
+    def run(self):
+         df_base = self.U.setup_df()
+         for pickle in self.pickles:
+             df_tmp = pd. read_pickle(pickle)
+        
 class Map:
     def __init__(self):
         self.config = configparser.ConfigParser()
@@ -427,10 +457,11 @@ class Map:
             fname_cc, fname_wad)
         self.df_c = \
             self.CD.get_country_centroids()
+        self.U = Utils()
+        self.pickles = self.U.get_local_pickle_files()
 
     def run(self, http_with_code):
-        pickles = self.get_local_pickle_files()
-        S = StravaData(pickles, http_with_code)
+        S = StravaData(self.pickles, http_with_code)
         df = S.run().dropna(
             subset=['map/summary_polyline'])
         a_ids = S.get_a_id_list(df)
@@ -450,15 +481,6 @@ class Map:
             position='topright',
             collapsed=True,
             autoZIndex=True))
-    
-    def get_local_pickle_files(self):
-        pwd = Path.cwd()
-        pickle_folder = self.config.get(
-            'path', 'pickle_folder')
-        pickles = glob.glob(
-            f'{pwd}/{pickle_folder}/*')
-        print(f'local pickle files: {pickles}')
-        return pickles
 
     def create_country_summaries(self, df):
          for _, row in self.df_c.iterrows():
@@ -721,6 +743,6 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=7b331c102a29b1ff094a6032b509eb24068511ac&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=4adcdd5fc26f420372db17922d91d3bcf536ddcf&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code)
