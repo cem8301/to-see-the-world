@@ -45,6 +45,9 @@ class Utils:
              df_base = pd.concat(
              [df_base, df_tmp], ignore_index=True)
          return df_base
+    
+    def get_a_id_list(self, df):
+        return list(set(df.get('athlete/id', {0})))
 
 class CountryData:
     def __init__(self, fname_cc, fname_wad):
@@ -262,9 +265,6 @@ class StravaData:
         df_code.country_admin = \
             df_code.country_admin.apply(tuple)
         return df_code
-    
-    def get_a_id_list(self, df):
-        return list(set(df.get('athlete/id', {0})))
         
     def get_df_final_time(self, df, a_id):
         df = self.df_by_a_id(df, a_id)
@@ -287,7 +287,7 @@ class StravaData:
         
     def print_df_size_by_a_id(self, df):
         msg = ''
-        a_ids = self.get_a_id_list(df)
+        a_ids = self.U.get_a_id_list(df)
         for a_id in a_ids:
             size = len(self.df_by_a_id(df, a_id))
             msg += f'a_id: {a_id}, size: {size}\n'
@@ -391,14 +391,47 @@ class StravaData:
         print(f'Saving as {folder}/{fname}')
         df.to_pickle(f'{folder}/{fname}')
 
+
 class Summary:
     def __init__(self):
         self.U = Utils()
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
         self.pickles = self.U.get_local_pickle_files()
+        self.dist_conv = float(
+            self.config.get('units', 'dist_conv'))
+        self.elev_conv = float(
+            self.config.get('units', 'elev_conv'))
+        self.dist_label = self.config.get(
+            'units', 'dist_label')
+        self.elev_label = self.config.get(
+            'units', 'elev_label')
 
-    def run(self):
-         df= self.U.create_base(self.pickles)
-         print(df)
+    def run(self, s_time_str='', e_time_str=''):
+         print('×××××× Summary by Athlete ××××××')
+         df = self.U.create_base(self.pickles)
+         if s_time_str:
+             print(f'Start Time: {s_time_str}')
+             df = df.get(
+                 df.start_date_local >= s_time_str)
+         if e_time_str:
+             print(f'End Time: {e_time_str}')
+             df = df.get(
+                 df.start_date_local <= e_time_str)
+         a_ids = self.U.get_a_id_list(df)
+         for a_id in a_ids:
+             df_a_id = df.get(df['athlete/id'] == a_id)
+             dist = round(df_a_id.distance.sum() *
+                 self.dist_conv, 0)
+             elev = round(
+                 df_a_id.total_elevation_gain.sum() *
+                 self.elev_conv, 0)
+             print(f'Athlete: {a_id}')
+             print(f'    Total Distance: {dist} '
+                      f'{self.dist_label}')
+             print(f'    Total Elevation Gain {elev} '
+                      f'{self.elev_label}')
+             
         
 class Map:
     def __init__(self):
@@ -463,7 +496,7 @@ class Map:
         S = StravaData(self.pickles, http_with_code)
         df = S.run().dropna(
             subset=['map/summary_polyline'])
-        a_ids = S.get_a_id_list(df)
+        a_ids = self.U.get_a_id_list(df)
         print(f'Set up folium map for {len(a_ids)} '
             'athletes')
         for a_id in a_ids:
@@ -743,5 +776,7 @@ class Map:
 
 if __name__ == "__main__":
      http_with_code = 'https://www.localhost.com/exchange_token?state=&code=cb88bef4c9175aa1008bd2f51019463e4471ad96&scope=read,activity:read_all'
-     M = Map()
-     M.run(http_with_code)
+     #M = Map()
+     #M.run(http_with_code)
+     S = Summary()
+     S.run(s_time_str='2023-05-28')
