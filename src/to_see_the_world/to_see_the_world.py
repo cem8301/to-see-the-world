@@ -426,11 +426,24 @@ class Summary:
              elev = round(
                  df_a_id.total_elevation_gain.sum() *
                  self.elev_conv, 0)
+             elev_dist = round(elev/dist, 0)
+             country_admin = \
+                 df_a_id.country_admin.values.sum()
+             countries = list(set(
+                 [ca[0] for ca in country_admin]))
+             admins = list(set(
+                 [ca[1] for ca in country_admin]))
              print(f'Athlete: {a_id}')
              print(f'    Total Distance: {dist} '
                       f'{self.dist_label}')
-             print(f'    Total Elevation Gain {elev} '
+             print(f'    Total Elevation Gain: {elev} '
                       f'{self.elev_label}')
+             print(f'    Average {self.elev_label}/'
+                      f'{self.dist_label}: {elev_dist}')
+             print(f'    Countries ({len(countries)}): '    
+                      f'{", ".join(countries)}')
+             print(f'    Admin Areas: ({len(admins)}): ' 
+                      f'{", ".join(admins)}')
              
         
 class Map:
@@ -776,7 +789,7 @@ class Map:
 
 if __name__ == "__main__":
      http_with_code = 'https://www.localhost.com/exchange_token?state=&code=cb88bef4c9175aa1008bd2f51019463e4471ad96&scope=read,activity:read_all'
-     #M = Map()
-     #M.run(http_with_code)
+     M = Map()
+     M.run(http_with_code)
      S = Summary()
      S.run(s_time_str='2023-05-28')
