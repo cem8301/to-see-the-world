@@ -432,6 +432,7 @@ class Summary:
                  df_a_id.country_admin.values.sum()
              countries = list(set(
                  [ca[0] for ca in country_admin]))
+
              countries.sort()
              admins = list(set(
                  [ca[1] for ca in country_admin]))
@@ -805,7 +806,7 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=e30d31dcff748344517b00ff5b7cfd7a528ec4aa&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=e30d31dcff748344517b00ff5b7cfd7a528ec4aa&scope=read,activity:read_al
      M = Map()
      M.run(http_with_code)
      S = Summary()
