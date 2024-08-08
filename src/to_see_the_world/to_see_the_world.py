@@ -15,6 +15,7 @@ import requests
 import reverse_geocoder as rg
 from stravalib import Client
 from thefuzz import process, fuzz
+from wordcloud import WordCloud, STOPWORDS
 import xyzservices.providers as xyz
 
 
@@ -431,8 +432,11 @@ class Summary:
                  df_a_id.country_admin.values.sum()
              countries = list(set(
                  [ca[0] for ca in country_admin]))
+
+             countries.sort()
              admins = list(set(
                  [ca[1] for ca in country_admin]))
+             admins.sort()
              print(f'Athlete: {a_id}')
              print(f'    Total Distance: {dist} '
                       f'{self.dist_label}')
@@ -552,6 +556,17 @@ class Map:
                         "min_width: 6000")))
              self.m.add_child(mk)
 
+    def get_top_words(self, df):
+         text = ' '.join(df['name'])
+         stopwords = set(STOPWORDS)
+         wc = WordCloud(
+             max_words=6,
+             min_word_length=3,
+             collocation_threshold=30,
+             stopwords = stopwords
+         ).generate(text)
+         return ', '.join(wc.words_.keys())
+         
     def get_popup(self, df, country):
         popup = {
             'Athlete':[],
@@ -560,7 +575,8 @@ class Map:
             f'Total Elevation ({self.elev_label})': [],
             'Administrative Areas Ratio':[],
             'Administrative Areas Visited':[],
-            'Administrative Areas Remain':[]}
+            'Administrative Areas Remain':[],
+            'Top Words!':[]}
         dfc = df[df.country_admin.apply(
             str).str.contains(country)]
         if len(dfc) == 0:
@@ -576,6 +592,7 @@ class Map:
             adm_ratio, adm_visit, adm_remain = \
                 self.CD.get_admin_tracking(
                 dfa, country)
+            top_words = self.get_top_words(dfa)
             popup['Athlete'].append(a_id)
             popup['Number of Rides'].append(
                 count)
@@ -591,6 +608,7 @@ class Map:
                 ].append(adm_visit)
             popup['Administrative Areas Remain'
                 ].append(adm_remain)
+            popup['Top Words!'].append(top_words)
         dfp = pd.DataFrame(popup)
         tablea = build_table(
             dfp,
@@ -788,7 +806,7 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=cb88bef4c9175aa1008bd2f51019463e4471ad96&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=e30d31dcff748344517b00ff5b7cfd7a528ec4aa&scope=read,activity:read_al
      M = Map()
      M.run(http_with_code)
      S = Summary()
