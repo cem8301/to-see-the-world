@@ -15,8 +15,40 @@ import requests
 import reverse_geocoder as rg
 from stravalib import Client
 from thefuzz import process, fuzz
+from wordcloud import WordCloud, STOPWORDS
 import xyzservices.providers as xyz
 
+
+class Utils:
+    def __init__(self):
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
+        self.pwd = Path.cwd()
+        self.col_names = self.config.get(
+            'data', 'col_names').split(', ')
+        
+    def get_local_pickle_files(self):
+        pickle_folder = self.config.get(
+            'path', 'pickle_folder')
+        pickles = glob.glob(
+            f'{self.pwd}/{pickle_folder}/*')
+        print(f'local pickle files: {pickles}')
+        return pickles
+    
+    def setup_df(self):
+        return pd.DataFrame(
+            columns = self.col_names)
+    
+    def create_base(self, pickles):
+         df_base = self.setup_df()
+         for pickle in pickles:
+             df_tmp = pd. read_pickle(pickle)
+             df_base = pd.concat(
+             [df_base, df_tmp], ignore_index=True)
+         return df_base
+    
+    def get_a_id_list(self, df):
+        return list(set(df.get('athlete/id', {0})))
 
 class CountryData:
     def __init__(self, fname_cc, fname_wad):
@@ -140,6 +172,7 @@ class StravaData:
         self.config.read('config.ini')
         self.secrets = configparser.ConfigParser()
         self.secrets.read('secrets.ini')
+        self.U = Utils()
         self.pickles = pickles
         self.code = \
             self.get_code_from_http_string(
@@ -158,7 +191,10 @@ class StravaData:
             'elev_high',
             'elev_low',
             'gear_id']
-        self.df_base = self.create_base()
+        self.col_names = self.config.get(
+            'data', 'col_names').split(', ')
+        self.df_base = self.U.create_base(
+            self.pickles)
         self.print_df_size_by_a_id(self.df_base)
         fname_cc = self.config.get(
             'path',
@@ -187,7 +223,7 @@ class StravaData:
         code_a_id = self.run_athlete_query()
         final_time = self.get_df_final_time(
             self.df_base, code_a_id)
-        df_code = self.setup_df()
+        df_code = self.U.setup_df()
         for page in range(1, page_count):
             df_code, data_end = \
                 self.run_activities_query(
@@ -231,13 +267,6 @@ class StravaData:
             df_code.country_admin.apply(tuple)
         return df_code
         
-    def setup_df(self):
-        return pd.DataFrame(
-            columns = self.col_names)
-    
-    def get_a_id_list(self, df):
-        return list(set(df.get('athlete/id', {0})))
-        
     def get_df_final_time(self, df, a_id):
         df = self.df_by_a_id(df, a_id)
         try:
@@ -259,19 +288,11 @@ class StravaData:
         
     def print_df_size_by_a_id(self, df):
         msg = ''
-        a_ids = self.get_a_id_list(df)
+        a_ids = self.U.get_a_id_list(df)
         for a_id in a_ids:
             size = len(self.df_by_a_id(df, a_id))
             msg += f'a_id: {a_id}, size: {size}\n'
         print(msg)
-
-    def create_base(self):
-         df_base = self.setup_df()
-         for pickle in self.pickles:
-             df_tmp = pd. read_pickle(pickle)
-             df_base = pd.concat(
-             [df_base, df_tmp], ignore_index=True)
-         return df_base
 
     def clean_df(self, df_base, df, code_a_id):
         print(f'{code_a_id}: end of run_query, '
@@ -371,6 +392,63 @@ class StravaData:
         print(f'Saving as {folder}/{fname}')
         df.to_pickle(f'{folder}/{fname}')
 
+
+class Summary:
+    def __init__(self):
+        self.U = Utils()
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
+        self.pickles = self.U.get_local_pickle_files()
+        self.dist_conv = float(
+            self.config.get('units', 'dist_conv'))
+        self.elev_conv = float(
+            self.config.get('units', 'elev_conv'))
+        self.dist_label = self.config.get(
+            'units', 'dist_label')
+        self.elev_label = self.config.get(
+            'units', 'elev_label')
+
+    def run(self, s_time_str='', e_time_str=''):
+         print('×××××× Summary by Athlete ××××××')
+         df = self.U.create_base(self.pickles)
+         if s_time_str:
+             print(f'Start Time: {s_time_str}')
+             df = df.get(
+                 df.start_date_local >= s_time_str)
+         if e_time_str:
+             print(f'End Time: {e_time_str}')
+             df = df.get(
+                 df.start_date_local <= e_time_str)
+         a_ids = self.U.get_a_id_list(df)
+         for a_id in a_ids:
+             df_a_id = df.get(df['athlete/id'] == a_id)
+             dist = round(df_a_id.distance.sum() *
+                 self.dist_conv, 0)
+             elev = round(
+                 df_a_id.total_elevation_gain.sum() *
+                 self.elev_conv, 0)
+             elev_dist = round(elev/dist, 0)
+             country_admin = \
+                 df_a_id.country_admin.values.sum()
+             countries = list(set(
+                 [ca[0] for ca in country_admin]))
+             countries.sort()
+             admins = list(set(
+                 [ca[1] for ca in country_admin]))
+             admins.sort()
+             print(f'Athlete: {a_id}')
+             print(f'    Total Distance: {dist} '
+                      f'{self.dist_label}')
+             print(f'    Total Elevation Gain: {elev} '
+                      f'{self.elev_label}')
+             print(f'    Average {self.elev_label}/'
+                      f'{self.dist_label}: {elev_dist}')
+             print(f'    Countries ({len(countries)}): '    
+                      f'{", ".join(countries)}')
+             print(f'    Admin Areas: ({len(admins)}): ' 
+                      f'{", ".join(admins)}')
+             
+        
 class Map:
     def __init__(self):
         self.config = configparser.ConfigParser()
@@ -427,13 +505,14 @@ class Map:
             fname_cc, fname_wad)
         self.df_c = \
             self.CD.get_country_centroids()
+        self.U = Utils()
+        self.pickles = self.U.get_local_pickle_files()
 
     def run(self, http_with_code):
-        pickles = self.get_local_pickle_files()
-        S = StravaData(pickles, http_with_code)
+        S = StravaData(self.pickles, http_with_code)
         df = S.run().dropna(
             subset=['map/summary_polyline'])
-        a_ids = S.get_a_id_list(df)
+        a_ids = self.U.get_a_id_list(df)
         print(f'Set up folium map for {len(a_ids)} '
             'athletes')
         for a_id in a_ids:
@@ -450,15 +529,6 @@ class Map:
             position='topright',
             collapsed=True,
             autoZIndex=True))
-    
-    def get_local_pickle_files(self):
-        pwd = Path.cwd()
-        pickle_folder = self.config.get(
-            'path', 'pickle_folder')
-        pickles = glob.glob(
-            f'{pwd}/{pickle_folder}/*')
-        print(f'local pickle files: {pickles}')
-        return pickles
 
     def create_country_summaries(self, df):
          for _, row in self.df_c.iterrows():
@@ -485,6 +555,17 @@ class Map:
                         "min_width: 6000")))
              self.m.add_child(mk)
 
+    def get_top_words(self, df):
+         text = ' '.join(df['name'])
+         stopwords = set(STOPWORDS)
+         wc = WordCloud(
+             max_words=6,
+             min_word_length=3,
+             collocation_threshold=30,
+             stopwords = stopwords
+         ).generate(text)
+         return ', '.join(wc.words_.keys())
+         
     def get_popup(self, df, country):
         popup = {
             'Athlete':[],
@@ -493,7 +574,8 @@ class Map:
             f'Total Elevation ({self.elev_label})': [],
             'Administrative Areas Ratio':[],
             'Administrative Areas Visited':[],
-            'Administrative Areas Remain':[]}
+            'Administrative Areas Remain':[],
+            'Top Words!':[]}
         dfc = df[df.country_admin.apply(
             str).str.contains(country)]
         if len(dfc) == 0:
@@ -509,6 +591,7 @@ class Map:
             adm_ratio, adm_visit, adm_remain = \
                 self.CD.get_admin_tracking(
                 dfa, country)
+            top_words = self.get_top_words(dfa)
             popup['Athlete'].append(a_id)
             popup['Number of Rides'].append(
                 count)
@@ -524,6 +607,7 @@ class Map:
                 ].append(adm_visit)
             popup['Administrative Areas Remain'
                 ].append(adm_remain)
+            popup['Top Words!'].append(top_words)
         dfp = pd.DataFrame(popup)
         tablea = build_table(
             dfp,
@@ -721,6 +805,8 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=7b331c102a29b1ff094a6032b509eb24068511ac&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=e30d31dcff748344517b00ff5b7cfd7a528ec4aa&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code)
+     S = Summary()
+     S.run(s_time_str='2023-05-28')

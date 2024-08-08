@@ -73,6 +73,7 @@ requests
 reverse-geocoder
 stravalib
 tzdata
+wordcloud
 xyzservices
 ```
 Also here in the [requirements.text](https://github.com/cem8301/to-see-the-world/blob/main/requirements.txt) file
@@ -126,14 +127,19 @@ The html file is your map! Click on it and open in your web browser. That is it!
 The pickle file stores the useful information gathered via the Strava API. This makes future runs much quicker. The code will first check for local pickle files, look for the date of the last entry, then (if authenticated) check Strava for any new data. This feature allows you to create a new map with out grabbing a new code. This also allows for overlaying other athletes data on one map (remember that only one athlete can be authenticated at a time). The map output will overlay any athlete pickle files to display on a single map. The html file will be named according with the athletes run.
 
 ## Ideas and Fixes Catalog!!
+- [ ] Make country identification cleaner. a single ride wont bounce back and forth between a country, maybe this can fix some wrong-country-errors
 - [ ] Distance vs time graph maybe as another html popup
-- [ ] Include word cloud that summarizes ride names in each country
 - [ ] Cleanup how country summaries are applied. My map shows that I have cycled in Georgia the country, when it was just Georgia that state
 - [ ] Use the full set of coordinates to specify mileage in each admin area? Not sure if that will work
 - [ ] Looks like it is possible to highlight regions you have visited? Maybe too much, but maybe neat. Leaving the [link](https://medium.com/vahaninc/geospatial-data-analysis-using-python-libraries-4c0367e1e824) to return to
 - [ ] Put country summary markers into feature groups and only show them when the rider is highlighted. I think that would look neater
 - [ ] Add map function to only display bike certain bikes! or activity types
 - [ ] Option to add in other gpx files from sources other than Strava. I have several tours that were not recorded.
+- [ ] Add a link to create a google maps route layer
+- [ ] Add elevation profiles to country summaries, vs regions
+- [ ] Update Strava authorization to remember secrets, so the user doesnt need to grant access every time the user wants more data
+- [ ] Create cron (see how via phone? free place online?) to run map updates once a week
+- [ ] Create summaries print out function. ie, distance, elevation, countries/regions, a gif of movement, during the time period
 
 ## Resources
 - World administrative areas [data source](https://hub.arcgis.com/datasets/4b316a570dc14f4a9daa2a88a7c6d419_0/explore?location=-0.192897%2C0.000000%2C1.89&showTable=true). Local file, mostly reflects that data
