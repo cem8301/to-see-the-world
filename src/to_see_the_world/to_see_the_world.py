@@ -217,18 +217,23 @@ class StravaData:
     def df_by_a_id(self, df, a_id):
         return df[df['athlete/id'] == a_id]
 
-    def run(self, page_count = 200):
+    def run(self, activity=0, page_count=200):
         if not hasattr(self, "headers"):
             return self.df_base
         code_a_id = self.run_athlete_query()
         final_time = self.get_df_final_time(
             self.df_base, code_a_id)
         df_code = self.U.setup_df()
+        if activity:
+            df_code, data_end = \
+                self.run_activities_query(
+                    df_code, code_a_id,
+                    final_time, activity)
         for page in range(1, page_count):
             df_code, data_end = \
                 self.run_activities_query(
-                    page, df_code,
-                    code_a_id, final_time)
+                    df_code, code_a_id,
+                    final_time, activity, page=page)
             if data_end:
                 if len(df_code) == 0:
                     print(f'{code_a_id}: '
@@ -341,11 +346,19 @@ class StravaData:
         return r['id']
         
     def run_activities_query(
-        self, page, df, a_id, final_time):
+        self, df, a_id, final_time,
+        activity,
+        page=0,
+        per_page=200):
         data_end = False
+        if activity:
+            activity_req = f"/{activity}"
+        else:
+            activity_req =\
+                f"?page={page}&per_page={per_page}"
         response = requests.get(
             "https://www.strava.com/api/v3/"
-            f"athlete/activities?page={page}",
+            f"athlete/activities{activity_req}",
             headers = self.headers).json()
         for r in response:
             try:
@@ -432,7 +445,6 @@ class Summary:
                  df_a_id.country_admin.values.sum()
              countries = list(set(
                  [ca[0] for ca in country_admin]))
-
              countries.sort()
              admins = list(set(
                  [ca[1] for ca in country_admin]))
@@ -806,8 +818,8 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=e30d31dcff748344517b00ff5b7cfd7a528ec4aa&scope=read,activity:read_al
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=8c22a4b1610c76c1deb95c2137eb5d566b85ba91&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code)
      S = Summary()
-     S.run(s_time_str='2023-05-28')
+     S.run()#s_time_str='2023-05-28')
