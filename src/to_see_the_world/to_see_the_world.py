@@ -59,8 +59,8 @@ class CountryData:
         
     def get_country_centroids(self):
         return self.df_cc[['name',
-                                        'latitude',
-                                        'longitude']]
+                                       'latitude',
+                                       'longitude']]
 
     def get_visited_adm_areas(self, df, country):
         ca = [ca for cas in list(df['country_admin'])
@@ -105,7 +105,7 @@ class CountryData:
                 #print(f'{visit} has no match')
         return dict(adm_remain), dict(visit_official)
         
-    def get_geo(self, df, slice=1):
+    def get_geo_save(self, df, slice=1, debug=False):
         dfe = df[['id','coords']].explode(
             'coords').dropna()
         coords_slice = list(dfe.coords)[::slice]
@@ -125,6 +125,30 @@ class CountryData:
                     ).append(t)
         ans = pd.DataFrame(
             tb.items(),
+            columns=['id','country_admin'])
+        return ans
+        
+    def get_geo(self, df, slice=1, debug=False):
+        dfe = df[['id','coords']].explode(
+            'coords').dropna()
+        coords_slice = list(dfe.coords)[::slice]
+        ids_slice = list(dfe.id)[::slice]
+        id_adm_cc = {}
+        adm_ccs = [(x['cc'], x['admin1'])
+            for x in rg.search(coords_slice)]
+        for idx, adm_cc in enumerate(adm_ccs):
+            t = (adm_cc[0], adm_cc[1])
+            if debug:
+                id_adm_cc.setdefault(ids_slice[idx],[]
+                    ).append(t)
+            else:
+                if t not in id_adm_cc.get(
+                    ids_slice[idx], []):
+                    id_adm_cc.setdefault(ids_slice[idx],[]
+                        ).append(t)
+        #country = self.cc_to_country(adm_cc[0])
+        ans = pd.DataFrame(
+            id_adm_cc.items(),
             columns=['id','country_admin'])
         return ans
 
@@ -217,35 +241,48 @@ class StravaData:
     def df_by_a_id(self, df, a_id):
         return df[df['athlete/id'] == a_id]
 
-    def run(self, activity=0, page_count=200):
+    def run(self, activity=0, page_count=200,
+        s_time_str='', e_time_str='', debug=False,
+        debug_col=[]):
         if not hasattr(self, "headers"):
             return self.df_base
+        if debug:
+            print(f'debug: {debug}')
         code_a_id = self.run_athlete_query()
         final_time = self.get_df_final_time(
-            self.df_base, code_a_id)
+            self.df_base, code_a_id, debug=debug)
         df_code = self.U.setup_df()
         if activity:
             df_code, data_end = \
                 self.run_activities_query(
                     df_code, code_a_id,
-                    final_time, activity)
-        for page in range(1, page_count):
-            df_code, data_end = \
-                self.run_activities_query(
-                    df_code, code_a_id,
-                    final_time, activity, page=page)
-            if data_end:
-                if len(df_code) == 0:
-                    print(f'{code_a_id}: '
-                        'No new rides found')
-                    return self.df_base
-                else:
-                    break
+                    final_time, activity=activity,
+                    debug=debug)
+        else:
+            for page in range(1, page_count):
+                df_code, data_end = \
+                    self.run_activities_query(
+                        df_code, code_a_id,
+                        final_time, activity, page=page,
+                        s_time_str=s_time_str,
+                        e_time_str=e_time_str,
+                        debug=debug)
+                if data_end:
+                    if len(df_code) == 0:
+                        print(f'{code_a_id}: '
+                            'No new rides found')
+                        return self.df_base
+                    else:
+                        break
         df_code = self.add_coord_columns(
-            df_code)
-        df_full = self.clean_df(
-            self.df_base, df_code, code_a_id)
-        self.save_pickle(df_full, code_a_id)
+            df_code, debug)
+        if debug:
+            df_full = df_code
+            print(df_full[debug_col])
+        else:
+            df_full = self.clean_df(
+                self.df_base, df_code, code_a_id)
+            self.save_pickle(df_full, code_a_id)
         self.print_df_size_by_a_id(df_full)
         return df_full
     
@@ -259,11 +296,13 @@ class StravaData:
             code = ''
         return code
       
-    def add_coord_columns(self, df_code):
+    def add_coord_columns(self,
+        df_code, debug=False):
         df_code['coords'] = df_code[
             'map/summary_polyline'].apply(
             polyline.decode)
-        df_geo = self.CD.get_geo(df_code)
+        df_geo = self.CD.get_geo(df_code,
+            debug=debug)
         df_code = pd.merge(
             df_code, df_geo, on='id', how='right')
         df_code.coords = \
@@ -272,7 +311,12 @@ class StravaData:
             df_code.country_admin.apply(tuple)
         return df_code
         
-    def get_df_final_time(self, df, a_id):
+    def get_df_final_time(self, df, a_id,
+        debug=False):
+        strava_create_time = datetime.strptime(
+            '2009', "%Y")
+        if debug:
+            return strava_create_time
         df = self.df_by_a_id(df, a_id)
         try:
             final_time = \
@@ -284,8 +328,7 @@ class StravaData:
             print(f'{a_id}: Final listed time in '
                       f'pickle file {final_time}')
         except:
-            final_time = datetime.strptime(
-                '2009', "%Y")
+            final_time = strava_create_time
             print(f'{a_id}: No pickle file. Final listed '
                       'time is the creation of Strava '
                       f'and is {final_time}')
@@ -346,26 +389,44 @@ class StravaData:
         return r['id']
         
     def run_activities_query(
-        self, df, a_id, final_time,
-        activity,
-        page=0,
-        per_page=200):
+        self, df, a_id, final_time, activity, page=0,
+        per_page=200, s_time_str='', e_time_str='',
+        debug=False):
         data_end = False
         if activity:
-            activity_req = f"/{activity}"
+            activity_req = ('activities'
+                f'/{activity}?include_all_efforts=false')
         else:
-            activity_req =\
-                f"?page={page}&per_page={per_page}"
-        response = requests.get(
-            "https://www.strava.com/api/v3/"
-            f"athlete/activities{activity_req}",
-            headers = self.headers).json()
+            activity_req = (
+                f'athlete/activities?page={page}&'
+                f'per_page={per_page}')
+            if s_time_str:
+                s_time_linux = datetime.timestamp(
+                    datetime.strptime(
+                    s_time_str, '%Y-%m-%d'))
+                activity_req += f'&after={s_time_linux}'
+            if e_time_str:
+                e_time_linux = datetime.timestamp(
+                    datetime.strptime(
+                    e_time_str, '%Y-%m-%d'))
+                activity_req += f'&before={e_time_linux}'
+        req = ('https://www.strava.com/api/v3/'
+            f'{activity_req}')
+        if debug:
+            print(req)
+        response = requests.get(req,
+            headers = self.headers,
+            timeout=180).json()
+        if 'message' in str(response):
+            print(f'Issue. Response json: {response}')
+        if activity:
+            response = [response]
         for r in response:
             try:
                 code_final_time = \
                     datetime.strptime(
                     r.get('start_date_local'),
-                    "%Y-%m-%dT%H:%M:%SZ")
+                    '%Y-%m-%dT%H:%M:%SZ')
                 if code_final_time <= final_time:
                     data_end = True
                     print(f'{a_id}: Data is now ' 
@@ -373,7 +434,7 @@ class StravaData:
                               'response loop')
                     break
             except:
-                print(f'Issue. Response json: {r}')
+                print(f'Error, response was: {r}')
             df_r = self.reduce_response(r)
             df = pd.concat([df, df_r],     
                 ignore_index=True)
@@ -388,6 +449,12 @@ class StravaData:
     def reduce_response(self, r):
         r.pop('start_latlng', None)
         r.pop('end_latlng', None)
+        r.pop('available_zones', None)
+        r.pop('stats_visibility', None)
+        r.pop('segment_efforts', None)
+        r.pop('splits_metric', None)
+        r.pop('laps', None)
+        r.pop('splits_standard', None)
         df = pd.DataFrame(
             flatten(r, reducer='path'), index=[0])
         df = df[[c for c in df.columns if c in \
@@ -521,9 +588,16 @@ class Map:
         self.U = Utils()
         self.pickles = self.U.get_local_pickle_files()
 
-    def run(self, http_with_code):
+    def run(self, http_with_code,
+        s_time_str='', e_time_str='', activity=0,
+        debug=False, debug_col=[]):
         S = StravaData(self.pickles, http_with_code)
-        df = S.run().dropna(
+        df = S.run(
+            s_time_str=s_time_str,
+            e_time_str=e_time_str,
+            activity=activity,
+            debug=debug,
+            debug_col=debug_col).dropna(
             subset=['map/summary_polyline'])
         a_ids = self.U.get_a_id_list(df)
         print(f'Set up folium map for {len(a_ids)} '
@@ -815,11 +889,15 @@ class Map:
                  f'{output_folder}/route_{a_id_str}.html')
         self.m.save(
             f'{output_folder}/route_{a_id_str}.html')
-        
+       
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=8c22a4b1610c76c1deb95c2137eb5d566b85ba91&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=3d8772dd4aebd7ff909f4bfe015875801c716253&scope=read,activity:read_all'
      M = Map()
-     M.run(http_with_code)
-     S = Summary()
-     S.run()#s_time_str='2023-05-28')
+     M.run(http_with_code,
+         s_time_str='2024-08-06',
+         #activity=12086386968,
+         debug=True,
+         debug_col=['id', 'country_admin'])
+     Sm = Summary()
+     Sm.run()#s_time_str='2023-05-28')
