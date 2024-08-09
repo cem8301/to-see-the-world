@@ -59,8 +59,8 @@ class CountryData:
         
     def get_country_centroids(self):
         return self.df_cc[['name',
-                                        'latitude',
-                                        'longitude']]
+                                       'latitude',
+                                       'longitude']]
 
     def get_visited_adm_areas(self, df, country):
         ca = [ca for cas in list(df['country_admin'])
@@ -105,7 +105,7 @@ class CountryData:
                 #print(f'{visit} has no match')
         return dict(adm_remain), dict(visit_official)
         
-    def get_geo(self, df, slice=1, debug=False):
+    def get_geo_save(self, df, slice=1, debug=False):
         dfe = df[['id','coords']].explode(
             'coords').dropna()
         coords_slice = list(dfe.coords)[::slice]
@@ -125,6 +125,30 @@ class CountryData:
                     ).append(t)
         ans = pd.DataFrame(
             tb.items(),
+            columns=['id','country_admin'])
+        return ans
+        
+    def get_geo(self, df, slice=1, debug=False):
+        dfe = df[['id','coords']].explode(
+            'coords').dropna()
+        coords_slice = list(dfe.coords)[::slice]
+        ids_slice = list(dfe.id)[::slice]
+        id_adm_cc = {}
+        adm_ccs = [(x['cc'], x['admin1'])
+            for x in rg.search(coords_slice)]
+        for idx, adm_cc in enumerate(adm_ccs):
+            t = (adm_cc[0], adm_cc[1])
+            if debug:
+                id_adm_cc.setdefault(ids_slice[idx],[]
+                    ).append(t)
+            else:
+                if t not in id_adm_cc.get(
+                    ids_slice[idx], []):
+                    id_adm_cc.setdefault(ids_slice[idx],[]
+                        ).append(t)
+        #country = self.cc_to_country(adm_cc[0])
+        ans = pd.DataFrame(
+            id_adm_cc.items(),
             columns=['id','country_admin'])
         return ans
 
@@ -218,7 +242,8 @@ class StravaData:
         return df[df['athlete/id'] == a_id]
 
     def run(self, activity=0, page_count=200,
-        s_time_str='', e_time_str='', debug=False):
+        s_time_str='', e_time_str='', debug=False,
+        debug_col=[]):
         if not hasattr(self, "headers"):
             return self.df_base
         if debug:
@@ -250,6 +275,7 @@ class StravaData:
             df_code, debug)
         if debug:
             df_full = df_code
+            print(df_full[debug_col])
         else:
             df_full = self.clean_df(
                 self.df_base, df_code, code_a_id)
@@ -371,12 +397,12 @@ class StravaData:
             if s_time_str:
                 s_time_linux = datetime.timestamp(
                     datetime.strptime(
-                    s_time_str, '%d/%m/%Y'))
+                    s_time_str, '%Y-%m-%d'))
                 activity_req += f'&after={s_time_linux}'
             if e_time_str:
                 e_time_linux = datetime.timestamp(
                     datetime.strptime(
-                    e_time_str, '%d/%m/%Y'))
+                    e_time_str, '%Y-%m-%d'))
                 activity_req += f'&before={e_time_linux}'
         response = requests.get(
             'https://www.strava.com/api/v3/'
@@ -544,12 +570,14 @@ class Map:
         self.pickles = self.U.get_local_pickle_files()
 
     def run(self, http_with_code,
-        s_time_str='', e_time_str='', debug=False):
+        s_time_str='', e_time_str='', debug=False,
+        debug_col=[]):
         S = StravaData(self.pickles, http_with_code)
         df = S.run(
             s_time_str=s_time_str,
             e_time_str=e_time_str,
-            debug=debug).dropna(''
+            debug=debug,
+            debug_col=debug_col).dropna(
             subset=['map/summary_polyline'])
         a_ids = self.U.get_a_id_list(df)
         print(f'Set up folium map for {len(a_ids)} '
@@ -844,9 +872,10 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=d55e6ef3c1df1ab8f90088e68fc31d2a43da552f&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=50ad8879bf77845b09ad952425433966f72b148a&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code,
-         s_time_str='2024-06-13', debug=True)
+         s_time_str='2024-08-06', debug=True,
+         debug_col=['id', 'country_admin'])
      Sm = Summary()
      Sm.run()#s_time_str='2023-05-28')
