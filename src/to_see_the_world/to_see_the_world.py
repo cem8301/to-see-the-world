@@ -105,7 +105,7 @@ class CountryData:
                 #print(f'{visit} has no match')
         return dict(adm_remain), dict(visit_official)
         
-    def get_geo(self, df, slice=1):
+    def get_geo(self, df, slice=1, debug=False):
         dfe = df[['id','coords']].explode(
             'coords').dropna()
         coords_slice = list(dfe.coords)[::slice]
@@ -218,12 +218,14 @@ class StravaData:
         return df[df['athlete/id'] == a_id]
 
     def run(self, activity=0, page_count=200,
-        s_time_str='', e_time_str=''):
+        s_time_str='', e_time_str='', debug=False):
         if not hasattr(self, "headers"):
             return self.df_base
+        if debug:
+            print(f'debug option is {debug}')
         code_a_id = self.run_athlete_query()
         final_time = self.get_df_final_time(
-            self.df_base, code_a_id)
+            self.df_base, code_a_id, debug=debug)
         df_code = self.U.setup_df()
         if activity:
             df_code, data_end = \
@@ -245,10 +247,13 @@ class StravaData:
                 else:
                     break
         df_code = self.add_coord_columns(
-            df_code)
-        df_full = self.clean_df(
-            self.df_base, df_code, code_a_id)
-        self.save_pickle(df_full, code_a_id)
+            df_code, debug)
+        if debug:
+            df_full = df_code
+        else:
+            df_full = self.clean_df(
+                self.df_base, df_code, code_a_id)
+            self.save_pickle(df_full, code_a_id)
         self.print_df_size_by_a_id(df_full)
         return df_full
     
@@ -262,11 +267,13 @@ class StravaData:
             code = ''
         return code
       
-    def add_coord_columns(self, df_code):
+    def add_coord_columns(self,
+        df_code, debug=False):
         df_code['coords'] = df_code[
             'map/summary_polyline'].apply(
             polyline.decode)
-        df_geo = self.CD.get_geo(df_code)
+        df_geo = self.CD.get_geo(df_code,
+            debug=debug)
         df_code = pd.merge(
             df_code, df_geo, on='id', how='right')
         df_code.coords = \
@@ -275,7 +282,12 @@ class StravaData:
             df_code.country_admin.apply(tuple)
         return df_code
         
-    def get_df_final_time(self, df, a_id):
+    def get_df_final_time(self, df, a_id,
+        debug=False):
+        strava_create_time = datetime.strptime(
+            '2009', "%Y")
+        if debug:
+            return strava_create_time
         df = self.df_by_a_id(df, a_id)
         try:
             final_time = \
@@ -287,8 +299,7 @@ class StravaData:
             print(f'{a_id}: Final listed time in '
                       f'pickle file {final_time}')
         except:
-            final_time = datetime.strptime(
-                '2009', "%Y")
+            final_time = strava_create_time
             print(f'{a_id}: No pickle file. Final listed '
                       'time is the creation of Strava '
                       f'and is {final_time}')
@@ -533,9 +544,12 @@ class Map:
         self.pickles = self.U.get_local_pickle_files()
 
     def run(self, http_with_code,
-        s_time_str='', e_time_str=''):
+        s_time_str='', e_time_str='', debug=False):
         S = StravaData(self.pickles, http_with_code)
-        df = S.run(s_time_str, e_time_str).dropna(
+        df = S.run(
+            s_time_str=s_time_str,
+            e_time_str=e_time_str,
+            debug=debug).dropna(''
             subset=['map/summary_polyline'])
         a_ids = self.U.get_a_id_list(df)
         print(f'Set up folium map for {len(a_ids)} '
@@ -827,11 +841,12 @@ class Map:
                  f'{output_folder}/route_{a_id_str}.html')
         self.m.save(
             f'{output_folder}/route_{a_id_str}.html')
-        
+       
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=754c95f93e06a037826810bdb98bfe89ea261239&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=d55e6ef3c1df1ab8f90088e68fc31d2a43da552f&scope=read,activity:read_all'
      M = Map()
-     M.run(http_with_code)
+     M.run(http_with_code,
+         s_time_str='2024-06-13', debug=True)
      Sm = Summary()
      Sm.run()#s_time_str='2023-05-28')
