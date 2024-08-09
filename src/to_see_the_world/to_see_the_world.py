@@ -247,7 +247,7 @@ class StravaData:
         if not hasattr(self, "headers"):
             return self.df_base
         if debug:
-            print(f'debug option is {debug}')
+            print(f'debug: {debug}')
         code_a_id = self.run_athlete_query()
         final_time = self.get_df_final_time(
             self.df_base, code_a_id, debug=debug)
@@ -256,21 +256,24 @@ class StravaData:
             df_code, data_end = \
                 self.run_activities_query(
                     df_code, code_a_id,
-                    final_time, activity)
-        for page in range(1, page_count):
-            df_code, data_end = \
-                self.run_activities_query(
-                    df_code, code_a_id,
-                    final_time, activity, page=page,
-                    s_time_str=s_time_str,
-                    e_time_str=e_time_str)
-            if data_end:
-                if len(df_code) == 0:
-                    print(f'{code_a_id}: '
-                        'No new rides found')
-                    return self.df_base
-                else:
-                    break
+                    final_time, activity=activity,
+                    debug=debug)
+        else:
+            for page in range(1, page_count):
+                df_code, data_end = \
+                    self.run_activities_query(
+                        df_code, code_a_id,
+                        final_time, activity, page=page,
+                        s_time_str=s_time_str,
+                        e_time_str=e_time_str,
+                        debug=debug)
+                if data_end:
+                    if len(df_code) == 0:
+                        print(f'{code_a_id}: '
+                            'No new rides found')
+                        return self.df_base
+                    else:
+                        break
         df_code = self.add_coord_columns(
             df_code, debug)
         if debug:
@@ -387,13 +390,16 @@ class StravaData:
         
     def run_activities_query(
         self, df, a_id, final_time, activity, page=0,
-        per_page=200, s_time_str='', e_time_str=''):
+        per_page=200, s_time_str='', e_time_str='',
+        debug=False):
         data_end = False
         if activity:
-            activity_req = f'/{activity}'
+            activity_req = ('activities'
+                f'/{activity}?include_all_efforts=false')
         else:
-            activity_req =\
-                f'?page={page}&per_page={per_page}'
+            activity_req = (
+                f'athlete/activities?page={page}&'
+                f'per_page={per_page}')
             if s_time_str:
                 s_time_linux = datetime.timestamp(
                     datetime.strptime(
@@ -404,10 +410,17 @@ class StravaData:
                     datetime.strptime(
                     e_time_str, '%Y-%m-%d'))
                 activity_req += f'&before={e_time_linux}'
-        response = requests.get(
-            'https://www.strava.com/api/v3/'
-            f'athlete/activities{activity_req}',
-            headers = self.headers).json()
+        req = ('https://www.strava.com/api/v3/'
+            f'{activity_req}')
+        if debug:
+            print(req)
+        response = requests.get(req,
+            headers = self.headers,
+            timeout=180).json()
+        if 'message' in str(response):
+            print(f'Issue. Response json: {response}')
+        if activity:
+            response = [response]
         for r in response:
             try:
                 code_final_time = \
@@ -421,7 +434,7 @@ class StravaData:
                               'response loop')
                     break
             except:
-                print(f'Issue. Response json: {r}')
+                print(f'Error, response was: {r}')
             df_r = self.reduce_response(r)
             df = pd.concat([df, df_r],     
                 ignore_index=True)
@@ -436,6 +449,12 @@ class StravaData:
     def reduce_response(self, r):
         r.pop('start_latlng', None)
         r.pop('end_latlng', None)
+        r.pop('available_zones', None)
+        r.pop('stats_visibility', None)
+        r.pop('segment_efforts', None)
+        r.pop('splits_metric', None)
+        r.pop('laps', None)
+        r.pop('splits_standard', None)
         df = pd.DataFrame(
             flatten(r, reducer='path'), index=[0])
         df = df[[c for c in df.columns if c in \
@@ -570,12 +589,13 @@ class Map:
         self.pickles = self.U.get_local_pickle_files()
 
     def run(self, http_with_code,
-        s_time_str='', e_time_str='', debug=False,
-        debug_col=[]):
+        s_time_str='', e_time_str='', activity=0,
+        debug=False, debug_col=[]):
         S = StravaData(self.pickles, http_with_code)
         df = S.run(
             s_time_str=s_time_str,
             e_time_str=e_time_str,
+            activity=activity,
             debug=debug,
             debug_col=debug_col).dropna(
             subset=['map/summary_polyline'])
@@ -872,10 +892,12 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=50ad8879bf77845b09ad952425433966f72b148a&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=3d8772dd4aebd7ff909f4bfe015875801c716253&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code,
-         s_time_str='2024-08-06', debug=True,
+         s_time_str='2024-08-06',
+         #activity=12086386968,
+         debug=True,
          debug_col=['id', 'country_admin'])
      Sm = Summary()
      Sm.run()#s_time_str='2023-05-28')
