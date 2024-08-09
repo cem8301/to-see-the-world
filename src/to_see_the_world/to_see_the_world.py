@@ -217,7 +217,8 @@ class StravaData:
     def df_by_a_id(self, df, a_id):
         return df[df['athlete/id'] == a_id]
 
-    def run(self, activity=0, page_count=200):
+    def run(self, activity=0, page_count=200,
+        s_time_str='', e_time_str=''):
         if not hasattr(self, "headers"):
             return self.df_base
         code_a_id = self.run_athlete_query()
@@ -233,7 +234,9 @@ class StravaData:
             df_code, data_end = \
                 self.run_activities_query(
                     df_code, code_a_id,
-                    final_time, activity, page=page)
+                    final_time, activity, page=page,
+                    s_time_str=s_time_str,
+                    e_time_str=e_time_str)
             if data_end:
                 if len(df_code) == 0:
                     print(f'{code_a_id}: '
@@ -346,26 +349,34 @@ class StravaData:
         return r['id']
         
     def run_activities_query(
-        self, df, a_id, final_time,
-        activity,
-        page=0,
-        per_page=200):
+        self, df, a_id, final_time, activity, page=0,
+        per_page=200, s_time_str='', e_time_str=''):
         data_end = False
         if activity:
-            activity_req = f"/{activity}"
+            activity_req = f'/{activity}'
         else:
             activity_req =\
-                f"?page={page}&per_page={per_page}"
+                f'?page={page}&per_page={per_page}'
+            if s_time_str:
+                s_time_linux = datetime.timestamp(
+                    datetime.strptime(
+                    s_time_str, '%d/%m/%Y'))
+                activity_req += f'&after={s_time_linux}'
+            if e_time_str:
+                e_time_linux = datetime.timestamp(
+                    datetime.strptime(
+                    e_time_str, '%d/%m/%Y'))
+                activity_req += f'&before={e_time_linux}'
         response = requests.get(
-            "https://www.strava.com/api/v3/"
-            f"athlete/activities{activity_req}",
+            'https://www.strava.com/api/v3/'
+            f'athlete/activities{activity_req}',
             headers = self.headers).json()
         for r in response:
             try:
                 code_final_time = \
                     datetime.strptime(
                     r.get('start_date_local'),
-                    "%Y-%m-%dT%H:%M:%SZ")
+                    '%Y-%m-%dT%H:%M:%SZ')
                 if code_final_time <= final_time:
                     data_end = True
                     print(f'{a_id}: Data is now ' 
@@ -521,9 +532,10 @@ class Map:
         self.U = Utils()
         self.pickles = self.U.get_local_pickle_files()
 
-    def run(self, http_with_code):
+    def run(self, http_with_code,
+        s_time_str='', e_time_str=''):
         S = StravaData(self.pickles, http_with_code)
-        df = S.run().dropna(
+        df = S.run(s_time_str, e_time_str).dropna(
             subset=['map/summary_polyline'])
         a_ids = self.U.get_a_id_list(df)
         print(f'Set up folium map for {len(a_ids)} '
@@ -818,8 +830,8 @@ class Map:
         
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=8c22a4b1610c76c1deb95c2137eb5d566b85ba91&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=754c95f93e06a037826810bdb98bfe89ea261239&scope=read,activity:read_all'
      M = Map()
      M.run(http_with_code)
-     S = Summary()
-     S.run()#s_time_str='2023-05-28')
+     Sm = Summary()
+     Sm.run()#s_time_str='2023-05-28')
