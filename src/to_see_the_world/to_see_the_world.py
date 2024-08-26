@@ -685,8 +685,7 @@ class Map:
             elev = round(
                 dfa['total_elevation_gain'].sum(), 0)
             moving_time = round(
-                dfa['moving_time'].sum() *\
-                self.sec_to_hr, 0)
+                dfa['moving_time_hrs'].sum(), 1)
             adm_ratio, adm_visit, adm_remain = \
                 self.CD.get_admin_tracking(
                 dfa, country)
@@ -771,6 +770,9 @@ class Map:
         df['total_elevation_gain'] = round(
             df['total_elevation_gain'] * \
             self.elev_conv, 0)
+        df['moving_time_hrs'] = round(
+            df['moving_time'].astype(float) * \
+            self.sec_to_hr, 1)
         df['color'] = df['athlete/id'].apply(
             self.get_athlete_color)
         df['stroke_width'] = df['athlete/id'].apply(
@@ -836,6 +838,8 @@ class Map:
                 'total_elevation_gain':
                     f"{x['total_elevation_gain']} "
                     f"{self.elev_label}",
+                'moving_time_hrs':
+                    f"{x['moving_time_hrs']} hrs",
                 'emoji': x['emoji'],
                 'link': x['link'],
                 'type': x['type']},
@@ -877,6 +881,7 @@ class Map:
                         'emoji',
                         'distance',
                         'total_elevation_gain',
+                        'moving_time_hrs',
                         'link'],
                     aliases=[
                         'Date: ',
@@ -884,6 +889,7 @@ class Map:
                         'Type: ',
                         'Distance: ', 
                         'Total Elevation Gain: ',
+                        'Moving Time: ',
                         'Link: '],
                     style=(
                         "background-color: white; "                                     "color: #333333; "
