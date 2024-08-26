@@ -201,20 +201,6 @@ class StravaData:
         self.code = \
             self.get_code_from_http_string(
             http_with_code)
-        self.col_names = [    
-            'map/summary_polyline',
-            'coords',
-            'id',
-            'achievement_count',
-            'athlete/id',
-            'start_date_local',
-            'type',
-            'name',
-            'distance',
-            'total_elevation_gain',
-            'elev_high',
-            'elev_low',
-            'gear_id']
         self.col_names = self.config.get(
             'data', 'col_names').split(', ')
         self.df_base = self.U.create_base(
