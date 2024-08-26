@@ -473,8 +473,8 @@ class Summary:
             'units', 'dist_label')
         self.elev_label = self.config.get(
             'units', 'elev_label')
-        self.sec_to_hr = self.config.get(
-            'units', 'sec_to_hr')
+        self.sec_to_hr = float(self.config.get(
+            'units', 'sec_to_hr'))
         self.cycling_day_hrs = float(
             self.config.get('data', 'cycling_day_hrs'))
 
@@ -501,6 +501,7 @@ class Summary:
              moving_time = round(
                  df_a_id.moving_time.sum() *
                  self.sec_to_hr, 0)
+             num_activities = len(df_a_id)
              country_admin = \
                  df_a_id.country_admin.values.sum()
              countries = list(set(
@@ -514,10 +515,11 @@ class Summary:
                       f'{self.dist_label}')
              print(f'    Total Elevation Gain: {elev} '
                       f'{self.elev_label}')
-             print(f'    Average {self.elev_label}/'
-                      f'{self.dist_label}: {elev_dist}')
-             print('    Moving Time (Hours): '
-                      f'{moving_time}')
+             print(f'    Average Elevation: {elev_dist} '
+                      f'{self.elev_label}/{self.dist_label}')
+             print(f'    Moving Time: {moving_time} hrs')
+             print('    Number of Activities: '
+                      f'{num_activities}')
              print(f'    Countries ({len(countries)}): '    
                       f'{", ".join(countries)}')
              print(f'    Admin Areas: ({len(admins)}): ' 
@@ -887,7 +889,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=6273da5a3dbdba5c94831555781a58e6bebfe5e7&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=34d4a61371716918445f9fc3698751b760d1862c&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
