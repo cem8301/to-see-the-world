@@ -579,6 +579,8 @@ class Map:
             'units', 'dist_label')
         self.elev_label = self.config.get(
             'units', 'elev_label')
+        self.sec_to_hr = float(self.config.get(
+            'units', 'sec_to_hr'))
         self.emoji = self.config._sections[
             'map_emoji']
         fname_cc = self.config.get(
@@ -664,7 +666,8 @@ class Map:
             'Athlete':[],
             'Number of Rides': [],
             f'Distance ({self.dist_label})':[],
-            f'Total Elevation ({self.elev_label})': [],
+            f'Elevation ({self.elev_label})': [],
+            'Moving Time (hrs)': [],
             'Administrative Areas Ratio':[],
             'Administrative Areas Visited':[],
             'Administrative Areas Remain':[],
@@ -681,6 +684,9 @@ class Map:
             dist = round(dfa['distance'].sum(), 1)
             elev = round(
                 dfa['total_elevation_gain'].sum(), 0)
+            moving_time = round(
+                dfa['moving_time'].sum() *\
+                self.sec_to_hr, 0)
             adm_ratio, adm_visit, adm_remain = \
                 self.CD.get_admin_tracking(
                 dfa, country)
@@ -692,8 +698,10 @@ class Map:
                 f'Distance ({self.dist_label})'
             ].append(dist)
             popup[
-                f'Total Elevation ({self.elev_label})'
+                f'Elevation ({self.elev_label})'
             ].append(elev)
+            popup['Moving Time (hrs)'].append(
+                moving_time)
             popup['Administrative Areas Ratio'
                 ].append(adm_ratio)
             popup['Administrative Areas Visited'
@@ -898,7 +906,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=c8e0b10ced8cdf19f15a213754d59956de176883&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=59d8eceaca79c465a63c8053b94c6dc575b7f7dc&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
