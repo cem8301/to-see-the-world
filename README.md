@@ -132,7 +132,6 @@ The pickle file stores the useful information gathered via the Strava API. This 
 - [ ] Multiple time lapse trackers show even when other riders are hidden, make trackers hide
 - [ ] Make country identification cleaner. a single ride wont bounce back and forth between a country, maybe this can fix some wrong-country-errors
 - [ ] Distance vs time graph maybe as another html popup
-- [ ] Cleanup how country summaries are applied. My map shows that I have cycled in Georgia the country, when it was just Georgia that state
 - [ ] Use the full set of coordinates to specify mileage in each admin area? Not sure if that will work
 - [ ] Looks like it is possible to highlight regions you have visited? Maybe too much, but maybe neat. Leaving the [link](https://medium.com/vahaninc/geospatial-data-analysis-using-python-libraries-4c0367e1e824) to return to
 - [ ] Put country summary markers into feature groups and only show them when the rider is highlighted. I think that would look neater
