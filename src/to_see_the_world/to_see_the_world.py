@@ -475,8 +475,8 @@ class Summary:
             'units', 'elev_label')
         self.sec_to_hr = float(self.config.get(
             'units', 'sec_to_hr'))
-        self.cycling_day_hrs = float(
-            self.config.get('data', 'cycling_day_hrs'))
+        self.full_day_hrs = float(
+            self.config.get('data', 'full_day_hrs'))
 
     def run(self, s_time_str='', e_time_str=''):
          print('×××××× Summary by Athlete ××××××')
@@ -500,8 +500,12 @@ class Summary:
              elev_dist = round(elev/dist, 0)
              moving_time = round(
                  df_a_id.moving_time.sum() *
-                 self.sec_to_hr, 0)
+                 self.sec_to_hr, 1)
+             avg_speed = round(dist/moving_time, 1)
              num_activities = len(df_a_id)
+             num_full_day = \
+                 len(df_a_id.get(df_a_id.moving_time 
+                     >= self.full_day_hrs/self.sec_to_hr))
              country_admin = \
                  df_a_id.country_admin.values.sum()
              countries = list(set(
@@ -518,8 +522,13 @@ class Summary:
              print(f'    Average Elevation: {elev_dist} '
                       f'{self.elev_label}/{self.dist_label}')
              print(f'    Moving Time: {moving_time} hrs')
+             print(f'    Average Speed: {avg_speed} '
+                      f'{self.dist_label}/hr')
              print('    Number of Activities: '
                       f'{num_activities}')
+             print('    Number of Full Days'
+                      f'(>{self.full_day_hrs} hrs): ' 
+                      f'{num_full_day}')
              print(f'    Countries ({len(countries)}): '    
                       f'{", ".join(countries)}')
              print(f'    Admin Areas: ({len(admins)}): ' 
@@ -893,14 +902,14 @@ if __name__ == "__main__":
      M = Map()
      M.run(
          http_with_code,
-         s_time_str='2024-01-13',
-         e_time_str='2024-01-29',
+         #s_time_str='2024-01-12',
+         #e_time_str='2024-01-30',
          #activity=12086386968,
          #debug=True,
          #debug_col=['id', 'country_admin']
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2024-01-13',
-         e_time_str='2024-01-29'
+         s_time_str='2024-01-12',
+         e_time_str='2024-01-30'
          )
