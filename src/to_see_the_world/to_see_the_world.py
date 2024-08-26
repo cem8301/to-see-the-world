@@ -105,7 +105,7 @@ class CountryData:
                 #print(f'{visit} has no match')
         return dict(adm_remain), dict(visit_official)
         
-    def get_geo_save(self, df, slice=1, debug=False):
+    def get_geo(self, df, slice=1, debug=False):
         dfe = df[['id','coords']].explode(
             'coords').dropna()
         coords_slice = list(dfe.coords)[::slice]
@@ -128,7 +128,7 @@ class CountryData:
             columns=['id','country_admin'])
         return ans
         
-    def get_geo(self, df, slice=1, debug=False):
+    def get_geo_new(self, df, slice=1, debug=False):
         dfe = df[['id','coords']].explode(
             'coords').dropna()
         coords_slice = list(dfe.coords)[::slice]
@@ -201,20 +201,6 @@ class StravaData:
         self.code = \
             self.get_code_from_http_string(
             http_with_code)
-        self.col_names = [    
-            'map/summary_polyline',
-            'coords',
-            'id',
-            'achievement_count',
-            'athlete/id',
-            'start_date_local',
-            'type',
-            'name',
-            'distance',
-            'total_elevation_gain',
-            'elev_high',
-            'elev_low',
-            'gear_id']
         self.col_names = self.config.get(
             'data', 'col_names').split(', ')
         self.df_base = self.U.create_base(
@@ -487,6 +473,10 @@ class Summary:
             'units', 'dist_label')
         self.elev_label = self.config.get(
             'units', 'elev_label')
+        self.sec_to_hr = float(self.config.get(
+            'units', 'sec_to_hr'))
+        self.full_day_hrs = float(
+            self.config.get('data', 'full_day_hrs'))
 
     def run(self, s_time_str='', e_time_str=''):
          print('×××××× Summary by Athlete ××××××')
@@ -508,6 +498,14 @@ class Summary:
                  df_a_id.total_elevation_gain.sum() *
                  self.elev_conv, 0)
              elev_dist = round(elev/dist, 0)
+             moving_time = round(
+                 df_a_id.moving_time.sum() *
+                 self.sec_to_hr, 1)
+             avg_speed = round(dist/moving_time, 1)
+             num_activities = len(df_a_id)
+             num_full_day = \
+                 len(df_a_id.get(df_a_id.moving_time 
+                     >= self.full_day_hrs/self.sec_to_hr))
              country_admin = \
                  df_a_id.country_admin.values.sum()
              countries = list(set(
@@ -521,8 +519,16 @@ class Summary:
                       f'{self.dist_label}')
              print(f'    Total Elevation Gain: {elev} '
                       f'{self.elev_label}')
-             print(f'    Average {self.elev_label}/'
-                      f'{self.dist_label}: {elev_dist}')
+             print(f'    Average Elevation: {elev_dist} '
+                      f'{self.elev_label}/{self.dist_label}')
+             print(f'    Moving Time: {moving_time} hrs')
+             print(f'    Average Speed: {avg_speed} '
+                      f'{self.dist_label}/hr')
+             print('    Number of Activities: '
+                      f'{num_activities}')
+             print('    Number of Full Days'
+                      f'(>{self.full_day_hrs} hrs): ' 
+                      f'{num_full_day}')
              print(f'    Countries ({len(countries)}): '    
                       f'{", ".join(countries)}')
              print(f'    Admin Areas: ({len(admins)}): ' 
@@ -573,6 +579,8 @@ class Map:
             'units', 'dist_label')
         self.elev_label = self.config.get(
             'units', 'elev_label')
+        self.sec_to_hr = float(self.config.get(
+            'units', 'sec_to_hr'))
         self.emoji = self.config._sections[
             'map_emoji']
         fname_cc = self.config.get(
@@ -658,7 +666,8 @@ class Map:
             'Athlete':[],
             'Number of Rides': [],
             f'Distance ({self.dist_label})':[],
-            f'Total Elevation ({self.elev_label})': [],
+            f'Elevation ({self.elev_label})': [],
+            'Moving Time (hrs)': [],
             'Administrative Areas Ratio':[],
             'Administrative Areas Visited':[],
             'Administrative Areas Remain':[],
@@ -675,6 +684,8 @@ class Map:
             dist = round(dfa['distance'].sum(), 1)
             elev = round(
                 dfa['total_elevation_gain'].sum(), 0)
+            moving_time = round(
+                dfa['moving_time_hrs'].sum(), 1)
             adm_ratio, adm_visit, adm_remain = \
                 self.CD.get_admin_tracking(
                 dfa, country)
@@ -686,8 +697,10 @@ class Map:
                 f'Distance ({self.dist_label})'
             ].append(dist)
             popup[
-                f'Total Elevation ({self.elev_label})'
+                f'Elevation ({self.elev_label})'
             ].append(elev)
+            popup['Moving Time (hrs)'].append(
+                moving_time)
             popup['Administrative Areas Ratio'
                 ].append(adm_ratio)
             popup['Administrative Areas Visited'
@@ -757,6 +770,9 @@ class Map:
         df['total_elevation_gain'] = round(
             df['total_elevation_gain'] * \
             self.elev_conv, 0)
+        df['moving_time_hrs'] = round(
+            df['moving_time'].astype(float) * \
+            self.sec_to_hr, 1)
         df['color'] = df['athlete/id'].apply(
             self.get_athlete_color)
         df['stroke_width'] = df['athlete/id'].apply(
@@ -822,6 +838,8 @@ class Map:
                 'total_elevation_gain':
                     f"{x['total_elevation_gain']} "
                     f"{self.elev_label}",
+                'moving_time_hrs':
+                    f"{x['moving_time_hrs']} hrs",
                 'emoji': x['emoji'],
                 'link': x['link'],
                 'type': x['type']},
@@ -863,6 +881,7 @@ class Map:
                         'emoji',
                         'distance',
                         'total_elevation_gain',
+                        'moving_time_hrs',
                         'link'],
                     aliases=[
                         'Date: ',
@@ -870,6 +889,7 @@ class Map:
                         'Type: ',
                         'Distance: ', 
                         'Total Elevation Gain: ',
+                        'Moving Time: ',
                         'Link: '],
                     style=(
                         "background-color: white; "                                     "color: #333333; "
@@ -892,16 +912,18 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=00d55630a65bf61fd84a83e710e612477e01aa87&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=59d8eceaca79c465a63c8053b94c6dc575b7f7dc&scope=read,activity:read_all'
      M = Map()
-     M.run(http_with_code
-         #s_time_str='2024-08-06',
+     M.run(
+         http_with_code,
+         #s_time_str='2024-01-12',
+         #e_time_str='2024-01-30',
          #activity=12086386968,
          #debug=True,
          #debug_col=['id', 'country_admin']
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2024-01-13',
-         e_time_str='2024-01-29'
+         s_time_str='2024-01-12',
+         e_time_str='2024-01-30'
          )
