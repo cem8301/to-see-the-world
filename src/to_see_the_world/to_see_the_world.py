@@ -892,12 +892,16 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=3d8772dd4aebd7ff909f4bfe015875801c716253&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=00d55630a65bf61fd84a83e710e612477e01aa87&scope=read,activity:read_all'
      M = Map()
-     M.run(http_with_code,
-         s_time_str='2024-08-06',
+     M.run(http_with_code
+         #s_time_str='2024-08-06',
          #activity=12086386968,
-         debug=True,
-         debug_col=['id', 'country_admin'])
+         #debug=True,
+         #debug_col=['id', 'country_admin']
+     )
      Sm = Summary()
-     Sm.run()#s_time_str='2023-05-28')
+     Sm.run(
+         s_time_str='2024-01-13',
+         e_time_str='2024-01-29'
+         )
