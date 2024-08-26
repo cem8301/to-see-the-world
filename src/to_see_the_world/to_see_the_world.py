@@ -58,15 +58,13 @@ class CountryData:
         self.ratio = 70
         
     def get_country_centroids(self):
-        return self.df_cc[['name',
-                                       'latitude',
-                                       'longitude']]
+        return self.df_cc
 
     def get_visited_adm_areas(self, df, country):
         ca = [ca for cas in list(df['country_admin'])
             for ca in cas]
         df_ca = pd.DataFrame(
-            ca, columns=['country', 'admin'])
+            ca, columns=['country', 'cc', 'admin'])
         strings = set(df_ca[
             df_ca.country == country]['admin'])
         return [x for x in strings if x]
@@ -105,7 +103,7 @@ class CountryData:
                 #print(f'{visit} has no match')
         return dict(adm_remain), dict(visit_official)
         
-    def get_geo(self, df, slice=1, debug=False):
+    def get_geo_save(self, df, slice=1, debug=False):
         dfe = df[['id','coords']].explode(
             'coords').dropna()
         coords_slice = list(dfe.coords)[::slice]
@@ -128,12 +126,13 @@ class CountryData:
             columns=['id','country_admin'])
         return ans
         
-    def get_geo_new(self, df, slice=1, debug=False):
+    def get_geo(self, df, slice=1, debug=False):
         dfe = df[['id','coords']].explode(
             'coords').dropna()
         coords_slice = list(dfe.coords)[::slice]
         ids_slice = list(dfe.id)[::slice]
         id_adm_cc = {}
+        tracker = {}
         adm_ccs = [(x['cc'], x['admin1'])
             for x in rg.search(coords_slice)]
         for idx, adm_cc in enumerate(adm_ccs):
@@ -142,9 +141,11 @@ class CountryData:
                 id_adm_cc.setdefault(ids_slice[idx],[]
                     ).append(t)
             else:
-                if t not in id_adm_cc.get(
-                    ids_slice[idx], []):
+                if t not in tracker.get(ids_slice[idx], []):
+                    country = self.cc_to_country(t[0])
                     id_adm_cc.setdefault(ids_slice[idx],[]
+                        ).append((country, t[0], t[1]))
+                    tracker.setdefault(ids_slice[idx],[]
                         ).append(t)
         #country = self.cc_to_country(adm_cc[0])
         ans = pd.DataFrame(
@@ -512,7 +513,7 @@ class Summary:
                  [ca[0] for ca in country_admin]))
              countries.sort()
              admins = list(set(
-                 [ca[1] for ca in country_admin]))
+                 [ca[2] for ca in country_admin]))
              admins.sort()
              print(f'Athlete: {a_id}')
              print(f'    Total Distance: {dist} '
@@ -627,8 +628,11 @@ class Map:
 
     def create_country_summaries(self, df):
          for _, row in self.df_c.iterrows():
-             country = row['name']
-             popup = self.get_popup(df, country)
+             country = row['country']
+             name = row['name']
+             if pd.isna(country):
+                 continue
+             popup = self.get_popup(df, country, name)
              if len(popup) == 0:
                  continue
              mk = folium.Marker(
@@ -661,7 +665,7 @@ class Map:
          ).generate(text)
          return ', '.join(wc.words_.keys())
          
-    def get_popup(self, df, country):
+    def get_popup(self, df, country, name):
         popup = {
             'Athlete':[],
             'Number of Rides': [],
@@ -672,8 +676,7 @@ class Map:
             'Administrative Areas Visited':[],
             'Administrative Areas Remain':[],
             'Top Words!':[]}
-        dfc = df[df.country_admin.apply(
-            str).str.contains(country)]
+        dfc = df[df.country_admin.apply(str).str.contains(country)]
         if len(dfc) == 0:
             return ''
         for a_id in self.athlete_ids_list:
@@ -688,7 +691,7 @@ class Map:
                 dfa['moving_time_hrs'].sum(), 1)
             adm_ratio, adm_visit, adm_remain = \
                 self.CD.get_admin_tracking(
-                dfa, country)
+                dfa, name)
             top_words = self.get_top_words(dfa)
             popup['Athlete'].append(a_id)
             popup['Number of Rides'].append(
@@ -720,7 +723,7 @@ class Map:
         tablea = tablea.replace(']', 
             '</span></details>')
         return (
-            f'<h3>{country}</h3>'
+            f'<h3>{name}</h3>'
             f'{tablea}<br>')
         
     def add_athlete(self, df):
@@ -912,18 +915,18 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=59d8eceaca79c465a63c8053b94c6dc575b7f7dc&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=7c74352de278c4d00794b068a5cd99e3018e60a6&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
          #s_time_str='2024-01-12',
          #e_time_str='2024-01-30',
-         #activity=12086386968,
+         #activity=3229365776,
          #debug=True,
          #debug_col=['id', 'country_admin']
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2024-01-12',
-         e_time_str='2024-01-30'
+         s_time_str='2022-06-10',
+         e_time_str='2022-07-04'
          )
