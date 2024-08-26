@@ -473,6 +473,10 @@ class Summary:
             'units', 'dist_label')
         self.elev_label = self.config.get(
             'units', 'elev_label')
+        self.sec_to_hr = self.config.get(
+            'units', 'sec_to_hr')
+        self.cycling_day_hrs = float(
+            self.config.get('data', 'cycling_day_hrs'))
 
     def run(self, s_time_str='', e_time_str=''):
          print('×××××× Summary by Athlete ××××××')
@@ -494,6 +498,9 @@ class Summary:
                  df_a_id.total_elevation_gain.sum() *
                  self.elev_conv, 0)
              elev_dist = round(elev/dist, 0)
+             moving_time = round(
+                 df_a_id.moving_time.sum() *
+                 self.sec_to_hr, 0)
              country_admin = \
                  df_a_id.country_admin.values.sum()
              countries = list(set(
@@ -509,6 +516,8 @@ class Summary:
                       f'{self.elev_label}')
              print(f'    Average {self.elev_label}/'
                       f'{self.dist_label}: {elev_dist}')
+             print('    Moving Time (Hours): '
+                      f'{moving_time}')
              print(f'    Countries ({len(countries)}): '    
                       f'{", ".join(countries)}')
              print(f'    Admin Areas: ({len(admins)}): ' 
@@ -882,8 +891,8 @@ if __name__ == "__main__":
      M = Map()
      M.run(
          http_with_code,
-         s_time_str='2024-08-06',
-         e_time_str='2024-08-10',
+         s_time_str='2024-01-13',
+         e_time_str='2024-01-29',
          #activity=12086386968,
          #debug=True,
          #debug_col=['id', 'country_admin']
