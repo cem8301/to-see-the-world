@@ -105,7 +105,7 @@ class CountryData:
                 #print(f'{visit} has no match')
         return dict(adm_remain), dict(visit_official)
         
-    def get_geo_save(self, df, slice=1, debug=False):
+    def get_geo(self, df, slice=1, debug=False):
         dfe = df[['id','coords']].explode(
             'coords').dropna()
         coords_slice = list(dfe.coords)[::slice]
@@ -128,7 +128,7 @@ class CountryData:
             columns=['id','country_admin'])
         return ans
         
-    def get_geo(self, df, slice=1, debug=False):
+    def get_geo_new(self, df, slice=1, debug=False):
         dfe = df[['id','coords']].explode(
             'coords').dropna()
         coords_slice = list(dfe.coords)[::slice]
@@ -898,7 +898,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=34d4a61371716918445f9fc3698751b760d1862c&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=c8e0b10ced8cdf19f15a213754d59956de176883&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
