@@ -49,6 +49,23 @@ class Utils:
     
     def get_a_id_list(self, df):
         return list(set(df.get('athlete/id', {0})))
+    
+    def encode(self, msg):
+        ans = ''
+        i = 0
+        while (i <= len(msg) - 1):
+            count = 1
+            ch = msg[i]
+            j = i
+            while (j < len(msg) - 1):
+                if (msg[j] == msg[j + 1]):
+                    count += 1
+                    j += 1
+                else:
+                    break
+            ans = f'{ans} {count}:{ch}'
+            i = j + 1
+        return ans
 
 class CountryData:
     def __init__(self, fname_cc, fname_wad):
@@ -102,30 +119,7 @@ class CountryData:
                 pass
                 #print(f'{visit} has no match')
         return dict(adm_remain), dict(visit_official)
-        
-    def get_geo_save(self, df, slice=1, debug=False):
-        dfe = df[['id','coords']].explode(
-            'coords').dropna()
-        coords_slice = list(dfe.coords)[::slice]
-        ids_slice = list(dfe.id)[::slice]
-        ta = {}
-        tb = {}
-        adm_ccs = [(x['cc'], x['admin1'])
-            for x in rg.search(coords_slice)]
-        for idx, adm_cc in enumerate(adm_ccs):
-            t = (adm_cc[0], adm_cc[1])
-            if t not in ta.get(ids_slice[idx], []):
-                country = self.cc_to_country(
-                    adm_cc[0])
-                tb.setdefault(ids_slice[idx],[]
-                    ).append((country, adm_cc[1]))
-                ta.setdefault(ids_slice[idx],[]
-                    ).append(t)
-        ans = pd.DataFrame(
-            tb.items(),
-            columns=['id','country_admin'])
-        return ans
-        
+
     def get_geo(self, df, slice=1, debug=False):
         dfe = df[['id','coords']].explode(
             'coords').dropna()
@@ -139,7 +133,7 @@ class CountryData:
             t = (adm_cc[0], adm_cc[1])
             if debug:
                 id_adm_cc.setdefault(ids_slice[idx],[]
-                    ).append(t)
+                    ).append(('x', t[0],t[1]))
             else:
                 if t not in tracker.get(ids_slice[idx], []):
                     country = self.cc_to_country(t[0])
@@ -147,7 +141,6 @@ class CountryData:
                         ).append((country, t[0], t[1]))
                     tracker.setdefault(ids_slice[idx],[]
                         ).append(t)
-        #country = self.cc_to_country(adm_cc[0])
         ans = pd.DataFrame(
             id_adm_cc.items(),
             columns=['id','country_admin'])
@@ -265,7 +258,14 @@ class StravaData:
             df_code, debug)
         if debug:
             df_full = df_code
-            print(df_full[debug_col])
+            d = df_full[debug_col].to_dict()
+            for col in debug_col:
+                ans = list(d[col].values())
+                for a in ans:
+                    if type(a) is list or type(a) is tuple:
+                        print(self.U.encode(a))
+                    else:
+                        print(self.U.encode([a]))
         else:
             df_full = self.clean_df(
                 self.df_base, df_code, code_a_id)
@@ -915,18 +915,18 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=7c74352de278c4d00794b068a5cd99e3018e60a6&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=90612c5edf493443851b8734e1ecd7534b8b0e2b&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
-         #s_time_str='2024-01-12',
-         #e_time_str='2024-01-30',
-         #activity=3229365776,
+         #s_time_str='2024-06-01',
+         #e_time_str='2024-08-06',
+         #activity=11725810152,
          #debug=True,
          #debug_col=['id', 'country_admin']
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2022-06-10',
-         e_time_str='2022-07-04'
+         s_time_str='2024-01-01',
+         #e_time_str='2022-07-04'
          )
