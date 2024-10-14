@@ -489,7 +489,7 @@ class Summary:
          df = self.U.create_base(self.pickles)
          df = self.limit_time(
              s_time_str, df, start=True)
-         df = seld.limit_time(
+         df = self.limit_time(
              e_time_str, df, start=False)
          a_ids = self.U.get_a_id_list(df)
          for a_id in a_ids:
@@ -535,16 +535,21 @@ class Summary:
                       f'{", ".join(countries)}')
              print(f'    Admin Areas: ({len(admins)}): ' 
                       f'{", ".join(admins)}')
+             if gpx:
+                 fname=f'{a_id}_{"_".join(countries)}'
+                 print(f'Saving gpx file as: {fname}')
+                 self.save_gpx(df, fname=fname)
      
     def limit_time(self, time_str, df, start=True):
-        if start:
-             print(f'Start Time: {time_str}')
-             df = df.get(
-                 df.start_date_local >= time_str)
-        else:
-            print(f'End Time: {time_str}')
-             df = df.get(
-                 df.start_date_local <= time_str)
+        if time_str:
+            if start:
+                 print(f'Start Time: {time_str}')
+                 df = df.get(
+                     df.start_date_local >= time_str)
+            else:
+                print(f'End Time: {time_str}')
+                df = df.get(
+                     df.start_date_local <= time_str)
         return df
               
     def add_elevations(self, lst):
@@ -983,17 +988,18 @@ class Map:
 
 if __name__ == "__main__":
      http_with_code = 'https://www.localhost.com/exchange_token?state=&code=de24cb035fe01ffb1d5235353e6ea8a8c05100c0&scope=read,activity:read_all'
-     M = Map()
-     M.run(
-         http_with_code,
+     #M = Map()
+     #M.run(
+     #    http_with_code,
          #s_time_str='2024-06-01',
          #e_time_str='2024-08-06',
          #activity=11725810152,
          #debug=True,
          #debug_col=['id', 'country_admin']
-     )
+     #)
      Sm = Summary()
      Sm.run(
-         s_time_str='2023-05-28',
-         #e_time_str='2022-07-04'
+         s_time_str='2024-08-28',
+         #e_time_str='2022-07-04',
+         gpx=True
          )
