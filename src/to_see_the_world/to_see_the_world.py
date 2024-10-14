@@ -4,10 +4,12 @@ from datetime import datetime
 import glob
 from pathlib import Path
 import re
+import time
 
 from flatten_dict import flatten
 import folium
 from folium.plugins import TimestampedGeoJson
+import gpxpy.gpx
 import pandas as pd
 import polyline
 from pretty_html_table import build_table
@@ -478,18 +480,17 @@ class Summary:
             'units', 'sec_to_hr'))
         self.full_day_hrs = float(
             self.config.get('data', 'full_day_hrs'))
+        self.otd_url = self.config.get('api', 'otd_url')
+        self.pwd = Path.cwd()
 
-    def run(self, s_time_str='', e_time_str=''):
+    def run(self, s_time_str='',
+        e_time_str='', gpx=False):
          print('×××××× Summary by Athlete ××××××')
          df = self.U.create_base(self.pickles)
-         if s_time_str:
-             print(f'Start Time: {s_time_str}')
-             df = df.get(
-                 df.start_date_local >= s_time_str)
-         if e_time_str:
-             print(f'End Time: {e_time_str}')
-             df = df.get(
-                 df.start_date_local <= e_time_str)
+         df = self.limit_time(
+             s_time_str, df, start=True)
+         df = self.limit_time(
+             e_time_str, df, start=False)
          a_ids = self.U.get_a_id_list(df)
          for a_id in a_ids:
              df_a_id = df.get(df['athlete/id'] == a_id)
@@ -534,8 +535,83 @@ class Summary:
                       f'{", ".join(countries)}')
              print(f'    Admin Areas: ({len(admins)}): ' 
                       f'{", ".join(admins)}')
-             
-        
+             if gpx:
+                 fname=f'{a_id}_{"_".join(countries)}.gpx'
+                 print(f'Saving gpx file as: {fname}')
+                 self.save_gpx(df, fname=fname)
+     
+    def limit_time(self, time_str, df, start=True):
+        if time_str:
+            if start:
+                 print(f'Start Time: {time_str}')
+                 df = df.get(
+                     df.start_date_local >= time_str)
+            else:
+                print(f'End Time: {time_str}')
+                df = df.get(
+                     df.start_date_local <= time_str)
+        return df
+              
+    def add_elevations(self, lst):
+        elevations = self.get_elevations(lst)
+        lst = [x + (elevations[
+            idx],) for idx, x in enumerate(lst)]
+        return lst
+    
+    def get_elevations(self, lst, req_limit=100):
+        elevations = []
+        wait_time =round(len(lst)/req_limit + 0.49)
+        print('Adding elevation data to gpx. '
+            f'Limited to {req_limit} requests per '
+            f'second. There are {len(lst)} requests. ' 
+            f'Please wait for {wait_time} requests.')
+        for i in range(0, len(lst), req_limit):
+            coords = pd.DataFrame(
+                lst[i: i + req_limit],
+                columns=['lat', 'long'])
+            coords_str = coords.to_string(
+                col_space=1, index=False, header=False)
+            coords_str = ",".join(
+                coords_str.replace('\n', '|').split())
+            req_data = {"locations": coords_str,
+                                 "interpolation": "bilinear"}
+            r = requests.post(
+                self.otd_url, data=req_data, timeout=10)
+            if r.json()['status'] == 'OK':
+                results = r.json()['results']
+                elevations += [
+                    res['elevation'] for res in results]
+                print(f'Request: {i}:{i + req_limit}')
+            else:
+                e = r.json()['error']
+                print(f'Error in add_elevation: {e}. '
+                    'Adding "0"s instead')
+                elevations += len(i) * [0]
+        return elevations
+
+    def save_gpx(self, df, fname='out'):
+        # reverse df to get continuous gpx track
+        df = df[::-1]
+        gpx = gpxpy.gpx.GPX()
+        gpx_track = gpxpy.gpx.GPXTrack()
+        gpx.tracks.append(gpx_track)
+        gpx_seg = gpxpy.gpx.GPXTrackSegment()
+        gpx_track.segments.append(gpx_seg)
+        lst = sum(df["coords"].apply(
+            lambda x: [i for i in x]), [])
+        lst = self.add_elevations(lst)
+        for x in lst:
+            gpx_seg.points.append(
+                gpxpy.gpx.GPXTrackPoint(
+                latitude = x[0],
+                longitude = x[1],
+                elevation = x[2]))
+        xml = gpx.to_xml()
+        f = open(f'{self.pwd}/output/{fname}', 'w')
+        f.write(xml)
+        f.close()
+  
+
 class Map:
     def __init__(self):
         self.config = configparser.ConfigParser()
@@ -915,7 +991,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=90612c5edf493443851b8734e1ecd7534b8b0e2b&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=6452878048750f0c826e89dd3b2a092139304a9f&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
@@ -927,6 +1003,7 @@ if __name__ == "__main__":
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2024-01-01',
-         #e_time_str='2022-07-04'
+         s_time_str='2024-10-05',
+         #e_time_str='2022-07-04',
+         gpx=True
          )
