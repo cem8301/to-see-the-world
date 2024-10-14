@@ -560,15 +560,15 @@ class Summary:
     
     def get_elevations(self, lst, req_limit=100):
         elevations = []
-        return len(lst) * [0]
         wait_time =round(len(lst)/req_limit + 0.49)
         print('Adding elevation data to gpx. '
             f'Limited to {req_limit} requests per '
             f'second. There are {len(lst)} requests. ' 
-            f'Please wait {wait_time}sec')
+            f'Please wait for {wait_time} requests.')
         for i in range(0, len(lst), req_limit):
             coords = pd.DataFrame(
-                lst[i: i+100], columns=['lat', 'long'])
+                lst[i: i + req_limit],
+                columns=['lat', 'long'])
             coords_str = coords.to_string(
                 col_space=1, index=False, header=False)
             coords_str = ",".join(
@@ -576,17 +576,17 @@ class Summary:
             req_data = {"locations": coords_str,
                                  "interpolation": "bilinear"}
             r = requests.post(
-                self.otd_url, data=req_data, timeout=5)
+                self.otd_url, data=req_data, timeout=10)
             if r.json()['status'] == 'OK':
                 results = r.json()['results']
                 elevations += [
                     res['elevation'] for res in results]
+                print(f'Request: {i}:{i + req_limit}')
             else:
                 e = r.json()['error']
                 print(f'Error in add_elevation: {e}. '
                     'Adding "0"s instead')
                 elevations += len(i) * [0]
-            time.sleep(1)
         return elevations
 
     def save_gpx(self, df, fname='out'):
@@ -607,7 +607,7 @@ class Summary:
                 longitude = x[1],
                 elevation = x[2]))
         xml = gpx.to_xml()
-        f = open(f'{self.pwd}/out/{fname}', 'w')
+        f = open(f'{self.pwd}/output/{fname}', 'w')
         f.write(xml)
         f.close()
   
@@ -991,19 +991,19 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=de24cb035fe01ffb1d5235353e6ea8a8c05100c0&scope=read,activity:read_all'
-     #M = Map()
-     #M.run(
-     #    http_with_code,
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=6452878048750f0c826e89dd3b2a092139304a9f&scope=read,activity:read_all'
+     M = Map()
+     M.run(
+         http_with_code,
          #s_time_str='2024-06-01',
          #e_time_str='2024-08-06',
          #activity=11725810152,
          #debug=True,
          #debug_col=['id', 'country_admin']
-     #)
+     )
      Sm = Summary()
      Sm.run(
-         s_time_str='2024-09-28',
+         s_time_str='2024-10-05',
          #e_time_str='2022-07-04',
          gpx=True
          )
