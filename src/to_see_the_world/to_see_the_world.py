@@ -479,6 +479,7 @@ class Summary:
             'units', 'sec_to_hr'))
         self.full_day_hrs = float(
             self.config.get('data', 'full_day_hrs'))
+        self.pwd = Path.cwd()
 
     def run(self, s_time_str='', e_time_str=''):
          print('×××××× Summary by Athlete ××××××')
@@ -535,8 +536,27 @@ class Summary:
                       f'{", ".join(countries)}')
              print(f'    Admin Areas: ({len(admins)}): ' 
                       f'{", ".join(admins)}')
-             
-        
+                      
+    def save_gpx(self, df, fname='out'):
+        gpx = gpxpy.gpx.GPX()
+        gpx_track = gpxpy.gpx.GPXTrack()
+        gpx.tracks.append(gpx_track)
+        gpx_seg = gpxpy.gpx.GPXTrackSegment()
+        gpx_track.segments.append(gpx_seg)
+        lst = sum(df["coords"].apply(
+            lambda x: [i for i in x]), [])
+        for x in lst:
+            gpx_seg.points.append(
+                gpxpy.gpx.GPXTrackPoint(
+                latitude=x[0],
+                longitude=x[1],
+                elevation=0))
+        xml = gpx.to_xml()
+        f = open(f'{self.pwd}/{fname}.gpx', 'w')
+        f.write(xml)
+        f.close()
+  
+
 class Map:
     def __init__(self):
         self.config = configparser.ConfigParser()
