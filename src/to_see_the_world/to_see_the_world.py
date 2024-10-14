@@ -536,7 +536,7 @@ class Summary:
              print(f'    Admin Areas: ({len(admins)}): ' 
                       f'{", ".join(admins)}')
              if gpx:
-                 fname=f'{a_id}_{"_".join(countries)}'
+                 fname=f'{a_id}_{"_".join(countries)}.gpx'
                  print(f'Saving gpx file as: {fname}')
                  self.save_gpx(df, fname=fname)
      
@@ -554,16 +554,18 @@ class Summary:
               
     def add_elevations(self, lst):
         elevations = self.get_elevations(lst)
-        lst = [x + elevations(
-            idx) for idx, x in enumerate(lst)]
+        lst = [x + (elevations[
+            idx],) for idx, x in enumerate(lst)]
         return lst
     
     def get_elevations(self, lst, req_limit=100):
         elevations = []
+        return len(lst) * [0]
         wait_time =round(len(lst)/req_limit + 0.49)
         print('Adding elevation data to gpx. '
             f'Limited to {req_limit} requests per '
-            f'second. Please wait {wait_time}')
+            f'second. There are {len(lst)} requests. ' 
+            f'Please wait {wait_time}sec')
         for i in range(0, len(lst), req_limit):
             coords = pd.DataFrame(
                 lst[i: i+100], columns=['lat', 'long'])
@@ -583,11 +585,13 @@ class Summary:
                 e = r.json()['error']
                 print(f'Error in add_elevation: {e}. '
                     'Adding "0"s instead')
-                elevations = len(i) * [0]
+                elevations += len(i) * [0]
             time.sleep(1)
         return elevations
 
     def save_gpx(self, df, fname='out'):
+        # reverse df to get continuous gpx track
+        df = df[::-1]
         gpx = gpxpy.gpx.GPX()
         gpx_track = gpxpy.gpx.GPXTrack()
         gpx.tracks.append(gpx_track)
@@ -603,7 +607,7 @@ class Summary:
                 longitude = x[1],
                 elevation = x[2]))
         xml = gpx.to_xml()
-        f = open(f'{self.pwd}/{fname}.gpx', 'w')
+        f = open(f'{self.pwd}/out/{fname}', 'w')
         f.write(xml)
         f.close()
   
@@ -999,7 +1003,7 @@ if __name__ == "__main__":
      #)
      Sm = Summary()
      Sm.run(
-         s_time_str='2024-08-28',
+         s_time_str='2024-09-28',
          #e_time_str='2022-07-04',
          gpx=True
          )
