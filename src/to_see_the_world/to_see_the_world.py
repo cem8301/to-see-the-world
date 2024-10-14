@@ -4,6 +4,7 @@ from datetime import datetime
 import glob
 from pathlib import Path
 import re
+import time
 
 from flatten_dict import flatten
 import folium
@@ -479,6 +480,7 @@ class Summary:
             'units', 'sec_to_hr'))
         self.full_day_hrs = float(
             self.config.get('data', 'full_day_hrs'))
+        self.otd_url = self.config.get('api', 'otd_url')
         self.pwd = Path.cwd()
 
     def run(self, s_time_str='', e_time_str=''):
@@ -536,7 +538,30 @@ class Summary:
                       f'{", ".join(countries)}')
              print(f'    Admin Areas: ({len(admins)}): ' 
                       f'{", ".join(admins)}')
-                      
+
+    def add_elevations(self, lst, req_limit=100):
+        elevations = []
+        for i in range(0, len(lst), req_limit):
+            coords = pd.DataFrame(
+                lst[i: i+100], columns=['lat', 'long'])
+            coords_str = coords.to_string(
+                col_space=1, index=False, header=False)
+            coords_str = ",".join(
+                coords_str.replace('\n', '|').split())
+            req_data = {"locations": coords_str,
+                                 "interpolation": "bilinear"}
+            r = requests.post(
+                self.otd_url, data=req_data, timeout=5)
+            if r.json()['status'] == 'OK':
+                results = r.json()['results']
+                elevations += [
+                    res['elevation'] for res in results]
+            else:
+                e = r.json()['error']
+                print(f'Error in add_elevation: {e}')
+            time.sleep(1)
+        return elevations
+
     def save_gpx(self, df, fname='out'):
         gpx = gpxpy.gpx.GPX()
         gpx_track = gpxpy.gpx.GPXTrack()
