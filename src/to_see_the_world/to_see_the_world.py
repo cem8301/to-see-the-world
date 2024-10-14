@@ -487,14 +487,10 @@ class Summary:
         e_time_str='', gpx=False):
          print('×××××× Summary by Athlete ××××××')
          df = self.U.create_base(self.pickles)
-         if s_time_str:
-             print(f'Start Time: {s_time_str}')
-             df = df.get(
-                 df.start_date_local >= s_time_str)
-         if e_time_str:
-             print(f'End Time: {e_time_str}')
-             df = df.get(
-                 df.start_date_local <= e_time_str)
+         df = self.limit_time(
+             s_time_str, df, start=True)
+         df = seld.limit_time(
+             e_time_str, df, start=False)
          a_ids = self.U.get_a_id_list(df)
          for a_id in a_ids:
              df_a_id = df.get(df['athlete/id'] == a_id)
@@ -539,7 +535,18 @@ class Summary:
                       f'{", ".join(countries)}')
              print(f'    Admin Areas: ({len(admins)}): ' 
                       f'{", ".join(admins)}')
-                      
+     
+    def limit_time(self, time_str, df, start=True):
+        if start:
+             print(f'Start Time: {time_str}')
+             df = df.get(
+                 df.start_date_local >= time_str)
+        else:
+            print(f'End Time: {time_str}')
+             df = df.get(
+                 df.start_date_local <= time_str)
+        return df
+              
     def add_elevations(self, lst):
         elevations = self.get_elevations(lst)
         lst = [x + elevations(
