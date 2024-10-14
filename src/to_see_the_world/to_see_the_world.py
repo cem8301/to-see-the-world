@@ -483,7 +483,8 @@ class Summary:
         self.otd_url = self.config.get('api', 'otd_url')
         self.pwd = Path.cwd()
 
-    def run(self, s_time_str='', e_time_str=''):
+    def run(self, s_time_str='',
+        e_time_str='', gpx=False):
          print('×××××× Summary by Athlete ××××××')
          df = self.U.create_base(self.pickles)
          if s_time_str:
@@ -538,9 +539,19 @@ class Summary:
                       f'{", ".join(countries)}')
              print(f'    Admin Areas: ({len(admins)}): ' 
                       f'{", ".join(admins)}')
-
-    def add_elevations(self, lst, req_limit=100):
+                      
+    def add_elevations(self, lst):
+        elevations = self.get_elevations(lst)
+        lst = [x + elevations(
+            idx) for idx, x in enumerate(lst)]
+        return lst
+    
+    def get_elevations(self, lst, req_limit=100):
         elevations = []
+        wait_time =round(len(lst)/req_limit + 0.49)
+        print('Adding elevation data to gpx. '
+            f'Limited to {req_limit} requests per '
+            f'second. Please wait {wait_time}')
         for i in range(0, len(lst), req_limit):
             coords = pd.DataFrame(
                 lst[i: i+100], columns=['lat', 'long'])
@@ -558,7 +569,9 @@ class Summary:
                     res['elevation'] for res in results]
             else:
                 e = r.json()['error']
-                print(f'Error in add_elevation: {e}')
+                print(f'Error in add_elevation: {e}. '
+                    'Adding "0"s instead')
+                elevations = len(i) * [0]
             time.sleep(1)
         return elevations
 
@@ -570,12 +583,13 @@ class Summary:
         gpx_track.segments.append(gpx_seg)
         lst = sum(df["coords"].apply(
             lambda x: [i for i in x]), [])
+        lst = self.add_elevations(lst)
         for x in lst:
             gpx_seg.points.append(
                 gpxpy.gpx.GPXTrackPoint(
-                latitude=x[0],
-                longitude=x[1],
-                elevation=0))
+                latitude = x[0],
+                longitude = x[1],
+                elevation = x[2]))
         xml = gpx.to_xml()
         f = open(f'{self.pwd}/{fname}.gpx', 'w')
         f.write(xml)
