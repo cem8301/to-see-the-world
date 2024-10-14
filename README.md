@@ -62,6 +62,7 @@ You need to pip install all of the required dependencies. This [link](https://ww
 ```
 flatten-dict
 folium
+gpxpy
 ninja
 numpy
 pandas

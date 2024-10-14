@@ -1,5 +1,6 @@
 flatten-dict==0.4.2
 folium==0.15.0
+gpxpy==1.6.2
 ninja==1.11.1
 numpy==1.26.1
 pandas==2.1.0

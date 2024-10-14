@@ -8,6 +8,7 @@ import re
 from flatten_dict import flatten
 import folium
 from folium.plugins import TimestampedGeoJson
+import gpxpy.gpx
 import pandas as pd
 import polyline
 from pretty_html_table import build_table
@@ -915,7 +916,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=90612c5edf493443851b8734e1ecd7534b8b0e2b&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=de24cb035fe01ffb1d5235353e6ea8a8c05100c0&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
@@ -927,6 +928,6 @@ if __name__ == "__main__":
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2024-01-01',
+         s_time_str='2023-05-28',
          #e_time_str='2022-07-04'
          )
