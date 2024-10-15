@@ -484,7 +484,7 @@ class Summary:
         self.pwd = Path.cwd()
 
     def run(self, s_time_str='',
-        e_time_str='', gpx=False):
+        e_time_str='', gpx=False, elevations=False):
          print('×××××× Summary by Athlete ××××××')
          df = self.U.create_base(self.pickles)
          df = self.limit_time(
@@ -538,7 +538,8 @@ class Summary:
              if gpx:
                  fname=f'{a_id}_{"_".join(countries)}.gpx'
                  print(f'Saving gpx file as: {fname}')
-                 self.save_gpx(df, fname=fname)
+                 self.save_gpx(
+                     df, elevations,fname=fname)
      
     def limit_time(self, time_str, df, start=True):
         if time_str:
@@ -552,8 +553,12 @@ class Summary:
                      df.start_date_local <= time_str)
         return df
               
-    def add_elevations(self, lst):
-        elevations = self.get_elevations(lst)
+    def add_elevations(self, lst, elevations):
+        if elevations:
+            elevations = self.get_elevations(lst)
+        else:
+            print('All elevation data set to 0.')
+            elevations = len(lst) * [0]
         lst = [x + (elevations[
             idx],) for idx, x in enumerate(lst)]
         return lst
@@ -589,7 +594,7 @@ class Summary:
                 elevations += len(i) * [0]
         return elevations
 
-    def save_gpx(self, df, fname='out'):
+    def save_gpx(self, df, elevations, fname='out'):
         # reverse df to get continuous gpx track
         df = df[::-1]
         gpx = gpxpy.gpx.GPX()
@@ -599,7 +604,7 @@ class Summary:
         gpx_track.segments.append(gpx_seg)
         lst = sum(df["coords"].apply(
             lambda x: [i for i in x]), [])
-        lst = self.add_elevations(lst)
+        lst = self.add_elevations(lst, elevations)
         for x in lst:
             gpx_seg.points.append(
                 gpxpy.gpx.GPXTrackPoint(
@@ -991,19 +996,20 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=6452878048750f0c826e89dd3b2a092139304a9f&scope=read,activity:read_all'
-     M = Map()
-     M.run(
-         http_with_code,
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=209bd41e2ee20704c1c7aee628437206b6940972&scope=read,activity:read_all'
+     #M = Map()
+     #M.run(
+     #    http_with_code,
          #s_time_str='2024-06-01',
          #e_time_str='2024-08-06',
          #activity=11725810152,
          #debug=True,
          #debug_col=['id', 'country_admin']
-     )
+     #)
      Sm = Summary()
      Sm.run(
          s_time_str='2024-10-05',
          #e_time_str='2022-07-04',
-         gpx=True
+         gpx=True,
+         elevations=False
          )
