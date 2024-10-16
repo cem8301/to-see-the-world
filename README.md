@@ -64,7 +64,6 @@ flatten-dict
 folium
 gpxpy
 ninja
-numpy
 pandas
 polyline
 pretty-html-table
