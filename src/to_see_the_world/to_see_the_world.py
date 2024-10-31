@@ -14,11 +14,12 @@ import pandas as pd
 import polyline
 from pretty_html_table import build_table
 import requests
-import reverse_geocoder as rg
 from stravalib import Client
 from thefuzz import process, fuzz
 from wordcloud import WordCloud, STOPWORDS
 import xyzservices.providers as xyz
+
+from coordinates_to_countries import CoordinatesToCountries
 
 
 class Utils:
@@ -122,31 +123,22 @@ class CountryData:
                 #print(f'{visit} has no match')
         return dict(adm_remain), dict(visit_official)
 
-    def get_geo(self, df, slice=1, debug=False):
-        dfe = df[['id','coords']].explode(
+    def get_geo(self, df, slice=1):
+        dfe = df[['id', 'coords']].explode(
             'coords').dropna()
         coords_slice = list(dfe.coords)[::slice]
-        ids_slice = list(dfe.id)[::slice]
-        id_adm_cc = {}
-        tracker = {}
-        adm_ccs = [(x['cc'], x['admin1'])
-            for x in rg.search(coords_slice)]
-        for idx, adm_cc in enumerate(adm_ccs):
-            t = (adm_cc[0], adm_cc[1])
-            if debug:
-                id_adm_cc.setdefault(ids_slice[idx],[]
-                    ).append(('x', t[0],t[1]))
-            else:
-                if t not in tracker.get(ids_slice[idx], []):
-                    country = self.cc_to_country(t[0])
-                    id_adm_cc.setdefault(ids_slice[idx],[]
-                        ).append((country, t[0], t[1]))
-                    tracker.setdefault(ids_slice[idx],[]
-                        ).append(t)
-        ans = pd.DataFrame(
-            id_adm_cc.items(),
-            columns=['id','country_admin'])
-        return ans
+        print('Finding coordinate meta data for '
+            f'{len(coords_slice)} points')
+        CTC = CoordinatesToCountries()
+        df = CTC.run(coords_slice)
+        df['id'] = list(dfe.id)[::slice]
+        df_sub = df.drop_duplicates(
+            subset=['id', 'cc', 'admin'])
+        df_sub['country_admin'] = list(zip(
+            df_sub.name, df_sub.cc, df_sub.admin))
+        df_ans = df_sub.groupby('id').agg(
+            list).reset_index()
+        return df_ans[['id','country_admin']]
 
     def cc_to_country(self, cc):
         try:
@@ -224,22 +216,18 @@ class StravaData:
         return df[df['athlete/id'] == a_id]
 
     def run(self, activity=0, page_count=200,
-        s_time_str='', e_time_str='', debug=False,
-        debug_col=[]):
+        s_time_str='', e_time_str=''):
         if not hasattr(self, "headers"):
             return self.df_base
-        if debug:
-            print(f'debug: {debug}')
         code_a_id = self.run_athlete_query()
         final_time = self.get_df_final_time(
-            self.df_base, code_a_id, debug=debug)
+            self.df_base, code_a_id)
         df_code = self.U.setup_df()
         if activity:
             df_code, data_end = \
                 self.run_activities_query(
                     df_code, code_a_id,
-                    final_time, activity=activity,
-                    debug=debug)
+                    final_time, activity=activity)
         else:
             for page in range(1, page_count):
                 df_code, data_end = \
@@ -247,8 +235,7 @@ class StravaData:
                         df_code, code_a_id,
                         final_time, activity, page=page,
                         s_time_str=s_time_str,
-                        e_time_str=e_time_str,
-                        debug=debug)
+                        e_time_str=e_time_str)
                 if data_end:
                     if len(df_code) == 0:
                         print(f'{code_a_id}: '
@@ -256,22 +243,10 @@ class StravaData:
                         return self.df_base
                     else:
                         break
-        df_code = self.add_coord_columns(
-            df_code, debug)
-        if debug:
-            df_full = df_code
-            d = df_full[debug_col].to_dict()
-            for col in debug_col:
-                ans = list(d[col].values())
-                for a in ans:
-                    if type(a) is list or type(a) is tuple:
-                        print(self.U.encode(a))
-                    else:
-                        print(self.U.encode([a]))
-        else:
-            df_full = self.clean_df(
-                self.df_base, df_code, code_a_id)
-            self.save_pickle(df_full, code_a_id)
+        df_code = self.add_coord_columns(df_code)
+        df_full = self.clean_df(
+            self.df_base, df_code, code_a_id)
+        self.save_pickle(df_full, code_a_id)
         self.print_df_size_by_a_id(df_full)
         return df_full
     
@@ -285,13 +260,11 @@ class StravaData:
             code = ''
         return code
       
-    def add_coord_columns(self,
-        df_code, debug=False):
+    def add_coord_columns(self, df_code):
         df_code['coords'] = df_code[
             'map/summary_polyline'].apply(
             polyline.decode)
-        df_geo = self.CD.get_geo(df_code,
-            debug=debug)
+        df_geo = self.CD.get_geo(df_code, slice=10)
         df_code = pd.merge(
             df_code, df_geo, on='id', how='right')
         df_code.coords = \
@@ -300,12 +273,9 @@ class StravaData:
             df_code.country_admin.apply(tuple)
         return df_code
         
-    def get_df_final_time(self, df, a_id,
-        debug=False):
+    def get_df_final_time(self, df, a_id,):
         strava_create_time = datetime.strptime(
             '2009', "%Y")
-        if debug:
-            return strava_create_time
         df = self.df_by_a_id(df, a_id)
         try:
             final_time = \
@@ -379,8 +349,7 @@ class StravaData:
         
     def run_activities_query(
         self, df, a_id, final_time, activity, page=0,
-        per_page=200, s_time_str='', e_time_str='',
-        debug=False):
+        per_page=200, s_time_str='', e_time_str=''):
         data_end = False
         if activity:
             activity_req = ('activities'
@@ -401,8 +370,6 @@ class StravaData:
                 activity_req += f'&before={e_time_linux}'
         req = ('https://www.strava.com/api/v3/'
             f'{activity_req}')
-        if debug:
-            print(req)
         response = requests.get(req,
             headers = self.headers,
             timeout=180).json()
@@ -429,7 +396,7 @@ class StravaData:
                 ignore_index=True)
         print(f'{a_id}: Page {page} has ' 
                   f'{len(response)} data points')
-        if len(response) == 0:
+        if len(response) < per_page:
             print(f'{a_id}: Finished gathering data '
                       f'for page: {page}')
             data_end = True
@@ -483,14 +450,22 @@ class Summary:
         self.otd_url = self.config.get('api', 'otd_url')
         self.pwd = Path.cwd()
 
-    def run(self, s_time_str='',
-        e_time_str='', gpx=False, elevations=False):
+    def run(self,
+        s_time_str='',
+        e_time_str='',
+        activity=0,
+        gpx=False,
+        elevations=False):
          print('×××××× Summary by Athlete ××××××')
          df = self.U.create_base(self.pickles)
          df = self.limit_time(
              s_time_str, df, start=True)
          df = self.limit_time(
              e_time_str, df, start=False)
+         if activity:
+             print(
+                 f'Limit summary to activity: {activity}')
+             df = df.get(df.id == activity)
          a_ids = self.U.get_a_id_list(df)
          for a_id in a_ids:
              df_a_id = df.get(df['athlete/id'] == a_id)
@@ -679,15 +654,12 @@ class Map:
         self.pickles = self.U.get_local_pickle_files()
 
     def run(self, http_with_code,
-        s_time_str='', e_time_str='', activity=0,
-        debug=False, debug_col=[]):
+        s_time_str='', e_time_str='', activity=0):
         S = StravaData(self.pickles, http_with_code)
         df = S.run(
             s_time_str=s_time_str,
             e_time_str=e_time_str,
-            activity=activity,
-            debug=debug,
-            debug_col=debug_col).dropna(
+            activity=activity).dropna(
             subset=['map/summary_polyline'])
         a_ids = self.U.get_a_id_list(df)
         print(f'Set up folium map for {len(a_ids)} '
@@ -996,20 +968,19 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=209bd41e2ee20704c1c7aee628437206b6940972&scope=read,activity:read_all'
-     #M = Map()
-     #M.run(
-     #    http_with_code,
-         #s_time_str='2024-06-01',
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=929a1b1d079b5437fd394ebb4bc7c6d441d00307&scope=read,activity:read_all'
+     M = Map()
+     M.run(
+         http_with_code,
+         s_time_str='2023-05-28',
          #e_time_str='2024-08-06',
-         #activity=11725810152,
-         #debug=True,
-         #debug_col=['id', 'country_admin']
-     #)
+         #activity=11725758693
+     )
      Sm = Summary()
      Sm.run(
-         s_time_str='2024-10-05',
-         #e_time_str='2022-07-04',
-         gpx=True,
-         elevations=False
+         #s_time_str='2023-05-28',
+         #e_time_str='2024-10-24',
+         #activity=11725758693,
+         #gpx=True,
+         #elevations=True
          )
