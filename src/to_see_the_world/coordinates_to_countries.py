@@ -33,7 +33,8 @@ class CoordinatesToCountries:
             list(self.df_country['lon'])))
         tree = KDTree(data, leafsize=30)
         _, ii = tree.query(coords, k=1, workers=-1)
-        geo_data = {'idx': [], 'cc': [], 'name': [], 'coord': []}
+        geo_data = {
+            'idx': [], 'cc': [], 'country': [], 'coord': []}
         for idx, i in enumerate(ii):
             geo_data['idx'].append(idx)
             cc = self.df_country.iloc[[
@@ -41,7 +42,7 @@ class CoordinatesToCountries:
             name = self.df_country.iloc[[
                 i]].country_name.values[0]
             geo_data['cc'].append(cc)
-            geo_data['name'].append(name)
+            geo_data['country'].append(name)
             geo_data['coord'].append(data[i])
         return pd.DataFrame(geo_data)
         
@@ -49,7 +50,7 @@ class CoordinatesToCountries:
         geo_data = {
            'idx': [],
             'cc': [],
-            'name': [],
+            'country': [],
             'coord': [],
             'admin': [],
             'city': []}
@@ -60,7 +61,8 @@ class CoordinatesToCountries:
                 self.df_city.cc == cc)
             geo_data['idx'] += list(sub_df_gd['idx'])
             geo_data['cc'] += list(sub_df_gd['cc'])
-            geo_data['name'] += list(sub_df_gd['name'])
+            geo_data['country'] += list(
+                sub_df_gd['country'])
             coord = list(sub_df_gd['coord'])
             geo_data['coord'] += coord
             data = list(zip(
