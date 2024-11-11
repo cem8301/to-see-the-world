@@ -115,27 +115,95 @@ class CountryData:
         return dict(adm_remain), dict(visit_official)
 
     def get_geo(self, df, slice=1):
-        dfe = df[['id', 'coords']].explode(
+        df_explode = df[['id', 'coords']].explode(
             'coords').dropna()
-        coords_slice = list(dfe.coords)[::slice]
+        coords_slice = list(df_explode.coords)[::slice]
         print('Finding coordinate meta data for '
             f'{len(coords_slice)} points')
         CTC = CoordinatesToCountries()
-        df = CTC.run(coords_slice)
-        df['id'] = list(dfe.id)[::slice]
-        df['border_crossings'] = \
-            self.check_border_crossings(df)
-        df_sub = df.drop_duplicates(
+        df_slice = CTC.run(coords_slice)
+        df_slice['id'] = list(df_explode.id)[::slice]
+        df_slice['border_crossings'] = \
+            self.check_border_crossings(df_slice)
+        df_slice = df_slice.drop_duplicates(
             subset=['id', 'cc', 'admin'])
-        df_ans = df_sub.groupby('id').agg(
-            {'country': lambda x: ','.join(set(x)),
-             'cc': lambda x: ','.join(set(x)),
+        df_slice = df_slice.groupby('id').agg(
+            {'country': 
+                lambda x: ','.join(list(dict.fromkeys(x))),
+             'cc': 
+                 lambda x: ','.join(list(dict.fromkeys(x))),
              'admin': ','.join,
              'border_crossings': 'mean'}).reset_index()
-        return df_ans[[
-            'id', 'country', 'cc', 'admin',
-            'border_crossings']]
+        df = pd.merge(
+            df, df_slice[['id', 'country', 'cc', 'admin',
+            'border_crossings']], on='id', how='right')
+        df.coords = \
+            df.coords.apply(tuple)
+        df = self.edit_borders(df)
+        return df
 
+    def edit_borders(self, df):
+        df_a = df.get(df.border_crossings > 1)
+        for i, row in df_a.iterrows():
+            cc_col = df.columns.get_loc('cc')
+            country_col = df.columns.get_loc('country')
+            prev_cc = df.iloc[i -1].cc.split(',')
+            cur_cc = row.cc.split(',')
+            next_cc = df.iloc[i +1].cc.split(',')
+            bc = row.border_crossings
+            len_next_cc = len(next_cc)
+            if len(cur_cc) == 1:
+                # Skipping, odd data
+                continue
+            if len_next_cc == 1:
+                if bc == 2:
+                    # Check for standard border crossing
+                    if prev_cc == next_cc:
+                        # No border crossing.
+                        # Set current cur_cc to prev_cc
+                        df.iloc[i, cc_col] = df.iloc[i - 1].cc
+                        df.iloc[i, country_col] = \
+                            df.iloc[i - 1].country
+                    elif prev_cc[0] == cur_cc[0] \
+                        and next_cc[0] == cur_cc[1]:
+                        # A border was crossed,
+                        # cur_cc is valid
+                        pass
+                    else:
+                        # Inconclusive,
+                        # set cur_cc to prev_cc
+                        df.iloc[i, cc_col] = df.iloc[i - 1].cc
+                        df.iloc[i, country_col] = \
+                            df.iloc[i - 1].country
+                elif bc == 3:
+                    # Check for country crossing,
+                    # note: cannot currently check for
+                    # re-entering the original country
+                    if prev_cc == cur_cc[0] \
+                        and len(cur_cc) == 3:
+                        # A country was crossed.
+                        # cur_cc is valid
+                        pass
+                    else:
+                        # Inconclusive.
+                        # Set cur_cc to prev_cc
+                        df.iloc[i, cc_col] = df.iloc[i - 1].cc
+                        df.iloc[i, country_col] = \
+                            df.iloc[i - 1].country
+                else:
+                    # bc > 3, the data very likely bad.
+                    # Set cur_cc to prev_cc
+                    df.iloc[i, cc_col] = df.iloc[i - 1].cc
+                    df.iloc[i, country_col] = \
+                        df.iloc[i - 1].country
+            else:
+                # len(next_cc) > 1. There is likely
+                # some bad data. Set cur_cc to prev_cc  
+                df.iloc[i, cc_col] = df.iloc[i - 1].cc
+                df.iloc[i, country_col] = \
+                    df.iloc[i - 1].country
+        return df
+        
     def check_border_crossings(self, df):
         bc = []
         for i in sorted(list(set(df.id))):
@@ -144,7 +212,7 @@ class CountryData:
                 dfa['cc'].shift()).cumsum(), 'cc']
                 ).size())
             bc += [num_bc] * len(dfa)
-        return bc
+        return bc[::-1]
     
     def cc_to_country(self, cc):
         try:
@@ -158,8 +226,7 @@ class CountryData:
     def get_admin_tracking(self, df, country):
         #NAME,COUNTRY,ISO_CC,ADMINTYPE
         #Badakhshān,Afghanistan,AF,Province
-        adm_visit = list(df.admin.values)#self.get_visited_adm_areas(
-            #df, country)
+        adm_visit = list(df.admin.values)
         tot_country_adm = self.df_wad[
             self.df_wad.country.str.contains(
             country)][['name', 'admin_type']]
@@ -228,33 +295,33 @@ class StravaData:
         code_a_id = self.run_athlete_query()
         final_time = self.get_df_final_time(
             self.df_base, code_a_id)
-        df_code = self.U.setup_df()
+        df = self.U.setup_df()
         if activity:
-            df_code, data_end = \
+            df, data_end = \
                 self.run_activities_query(
-                    df_code, code_a_id,
+                    df, code_a_id,
                     final_time, activity=activity)
         else:
             for page in range(1, page_count):
-                df_code, data_end = \
+                df, data_end = \
                     self.run_activities_query(
-                        df_code, code_a_id,
+                        df, code_a_id,
                         final_time, activity, page=page,
                         s_time_str=s_time_str,
                         e_time_str=e_time_str)
                 if data_end:
-                    if len(df_code) == 0:
+                    if len(df) == 0:
                         print(f'{code_a_id}: '
                             'No new rides found')
                         return self.df_base
                     else:
                         break
-        df_code = self.add_coord_columns(df_code)
-        df_full = self.clean_df(
-            self.df_base, df_code, code_a_id)
-        self.save_pickle(df_full, code_a_id)
-        self.print_df_size_by_a_id(df_full)
-        return df_full
+        df = self.add_coord_columns(df)
+        df = self.clean_df(
+            self.df_base, df, code_a_id)
+        self.save_pickle(df, code_a_id)
+        self.print_df_size_by_a_id(df)
+        return df
     
     def get_code_from_http_string(
         self, http_with_code):
@@ -266,16 +333,11 @@ class StravaData:
             code = ''
         return code
       
-    def add_coord_columns(self, df_code):
-        df_code['coords'] = df_code[
+    def add_coord_columns(self, df):
+        df['coords'] = df[
             'map/summary_polyline'].apply(
             polyline.decode)
-        df_geo = self.CD.get_geo(df_code, slice=10)
-        df_code = pd.merge(
-            df_code, df_geo, on='id', how='right')
-        df_code.coords = \
-            df_code.coords.apply(tuple)
-        return df_code
+        return self.CD.get_geo(df, slice=10)
         
     def get_df_final_time(self, df, a_id,):
         strava_create_time = datetime.strptime(
@@ -970,11 +1032,11 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=6ab8f98efa5dc514a40a746cb067c6fcf2eaae08&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=08765a8ce5513e1665f2c3d6b453e770d8944bbf&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
-         #s_time_str='2024-10-20',
+         #s_time_str='2023-05-20',
          #e_time_str='2024-08-06',
          #activity=11725758693
      )
