@@ -79,15 +79,6 @@ class CountryData:
         
     def get_country_centroids(self):
         return self.df_cc
-
-    def get_visited_adm_areas(self, df, country):
-        ca = [ca for cas in list(df['country_admin'])
-            for ca in cas]
-        df_ca = pd.DataFrame(
-            ca, columns=['country', 'cc', 'admin'])
-        strings = set(df_ca[
-            df_ca.country == country]['admin'])
-        return [x for x in strings if x]
      
     def get_adm_areas_remain(
         self, adm_visit, tuple_adm):
@@ -132,14 +123,29 @@ class CountryData:
         CTC = CoordinatesToCountries()
         df = CTC.run(coords_slice)
         df['id'] = list(dfe.id)[::slice]
+        df['border_crossings'] = \
+            self.check_border_crossings(df)
         df_sub = df.drop_duplicates(
             subset=['id', 'cc', 'admin'])
-        df_sub['country_admin'] = list(zip(
-            df_sub.name, df_sub.cc, df_sub.admin))
         df_ans = df_sub.groupby('id').agg(
-            list).reset_index()
-        return df_ans[['id','country_admin']]
+            {'country': lambda x: ','.join(set(x)),
+             'cc': lambda x: ','.join(set(x)),
+             'admin': ','.join,
+             'border_crossings': 'mean'}).reset_index()
+        return df_ans[[
+            'id', 'country', 'cc', 'admin',
+            'border_crossings']]
 
+    def check_border_crossings(self, df):
+        bc = []
+        for i in sorted(list(set(df.id))):
+            dfa = df.get(df.id == i)
+            num_bc = len(dfa.groupby([dfa['cc'].ne(
+                dfa['cc'].shift()).cumsum(), 'cc']
+                ).size())
+            bc += [num_bc] * len(dfa)
+        return bc
+    
     def cc_to_country(self, cc):
         try:
             ans = list(self.df_cc[
@@ -152,8 +158,8 @@ class CountryData:
     def get_admin_tracking(self, df, country):
         #NAME,COUNTRY,ISO_CC,ADMINTYPE
         #Badakhshān,Afghanistan,AF,Province
-        adm_visit = self.get_visited_adm_areas(
-            df, country)
+        adm_visit = list(df.admin.values)#self.get_visited_adm_areas(
+            #df, country)
         tot_country_adm = self.df_wad[
             self.df_wad.country.str.contains(
             country)][['name', 'admin_type']]
@@ -269,8 +275,6 @@ class StravaData:
             df_code, df_geo, on='id', how='right')
         df_code.coords = \
             df_code.coords.apply(tuple)
-        df_code.country_admin = \
-            df_code.country_admin.apply(tuple)
         return df_code
         
     def get_df_final_time(self, df, a_id,):
@@ -483,13 +487,11 @@ class Summary:
              num_full_day = \
                  len(df_a_id.get(df_a_id.moving_time 
                      >= self.full_day_hrs/self.sec_to_hr))
-             country_admin = \
-                 df_a_id.country_admin.values.sum()
-             countries = list(set(
-                 [ca[0] for ca in country_admin]))
+             countries = list(set(','.join(
+                 df_a_id.country.values.tolist()).split(',')))
+             admins = list(set(','.join(
+                 df_a_id.admin.values.tolist()).split(',')))
              countries.sort()
-             admins = list(set(
-                 [ca[2] for ca in country_admin]))
              admins.sort()
              print(f'Athlete: {a_id}')
              print(f'    Total Distance: {dist} '
@@ -681,11 +683,11 @@ class Map:
 
     def create_country_summaries(self, df):
          for _, row in self.df_c.iterrows():
-             country = row['country']
+             cc = row['country']
              name = row['name']
-             if pd.isna(country):
+             if pd.isna(cc):
                  continue
-             popup = self.get_popup(df, country, name)
+             popup = self.get_popup(df, cc, name)
              if len(popup) == 0:
                  continue
              mk = folium.Marker(
@@ -718,7 +720,7 @@ class Map:
          ).generate(text)
          return ', '.join(wc.words_.keys())
          
-    def get_popup(self, df, country, name):
+    def get_popup(self, df, cc, name):
         popup = {
             'Athlete':[],
             'Number of Rides': [],
@@ -729,7 +731,7 @@ class Map:
             'Administrative Areas Visited':[],
             'Administrative Areas Remain':[],
             'Top Words!':[]}
-        dfc = df[df.country_admin.apply(str).str.contains(country)]
+        dfc = df[df.cc.apply(str).str.contains(cc)]
         if len(dfc) == 0:
             return ''
         for a_id in self.athlete_ids_list:
@@ -968,11 +970,11 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=929a1b1d079b5437fd394ebb4bc7c6d441d00307&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=6ab8f98efa5dc514a40a746cb067c6fcf2eaae08&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
-         s_time_str='2023-05-28',
+         #s_time_str='2024-10-20',
          #e_time_str='2024-08-06',
          #activity=11725758693
      )
