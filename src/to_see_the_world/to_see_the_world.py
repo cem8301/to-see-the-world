@@ -704,6 +704,8 @@ class Map:
             'units', 'sec_to_hr'))
         self.emoji = self.config._sections[
             'map_emoji']
+        self.country_flag = self.config._sections[
+            'country_flag']
         fname_cc = self.config.get(
             'path',
             'fname_country_centroids')
@@ -864,6 +866,13 @@ class Map:
             return self.emoji[the_type.lower()]
         else:
             return self.emoji['other']
+    
+    def get_country_flag(self, cc):
+         emojis = ''
+         for cc in cc.lower().split(','):
+             if cc.strip() in self.country_flag:
+                 emojis += self.country_flag[cc.strip()]
+         return emojis
      
     def get_link(self, id):
         url = ('https://www.strava.com'
@@ -883,7 +892,8 @@ class Map:
         return self.athlete_dash_array[a_id]
 
     def create_lines(self, df, a_ids):
-        df['emoji'] = df['type'].apply(self.get_emoji)
+        df['emoji'] = df['type'].apply(self.get_emoji) +\
+            df['cc'].apply(self.get_country_flag)
         df['link'] = df['id'].apply(self.get_link)
         df['distance'] = round(df['distance'] * \
             self.dist_conv, 1)
