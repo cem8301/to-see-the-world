@@ -128,7 +128,7 @@ The html file is your map! Click on it and open in your web browser. That is it!
 The pickle file stores the useful information gathered via the Strava API. This makes future runs much quicker. The code will first check for local pickle files, look for the date of the last entry, then (if authenticated) check Strava for any new data. This feature allows you to create a new map with out grabbing a new code. This also allows for overlaying other athletes data on one map (remember that only one athlete can be authenticated at a time). The map output will overlay any athlete pickle files to display on a single map. The html file will be named according with the athletes run.
 
 ## Ideas and Fixes Catalog!!
-- [ ] Add country flag emoji flag to country summary
+- [ ] Clean up shifted countries data. There is at least one NAN country cuasing Jaocbs data to fail. Alao need to include island countries and island sections of countries. Currently I have visited American Samoa because Hawaii is not in my USA coordinates. 
 - [ ] Clean up supporting_data inputs. Make dara up-to-date and easily updateable and clear on the datasource
 - [ ] Have timelapse tracker skip inactive days, make sure the tracker is always visible, and make all riders tracker a different color
 - [ ] Option to hide country pointers(all/other people)
