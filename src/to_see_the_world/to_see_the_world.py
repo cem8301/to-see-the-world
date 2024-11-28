@@ -77,7 +77,7 @@ class CountryData:
         self.df_country_data = pd.read_csv(
             fname_country_data, na_filter = False)
         self.ratio = 70
-        
+        0
     def get_country_centroids(self):
         df_cd = self.df_country_data
         df_cd['country_centroid'] = \
@@ -708,6 +708,7 @@ class Summary:
             f'second. There are {len(lst)} requests. ' 
             f'Please wait for {wait_time} requests.')
         for i in range(0, len(lst), req_limit):
+            time.sleep(0.8)
             coords = pd.DataFrame(
                 lst[i: i + req_limit],
                 columns=['lat', 'long'])
@@ -732,8 +733,8 @@ class Summary:
         return elevations
 
     def save_gpx(self, df, elevations, fname='out'):
-        # reverse df to get continuous gpx track
-        df = df[::-1]
+        df = df.sort_values(['start_date_local'],
+            ascending = True)
         gpx = gpxpy.gpx.GPX()
         gpx_track = gpxpy.gpx.GPXTrack()
         gpx.tracks.append(gpx_track)
@@ -1135,19 +1136,23 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=72d5749b072b1fa75274c5a840cc0af116ea2130&scope=read,activity:read_all'
+
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=b3c66f2eb7d6146fff87cfd88b3ffd2f6d023a97&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
-         #s_time_str='2018-04-15',
-         #e_time_str='2018-05-15',
+         s_time_str='2023-05-20',
+         #e_time_str='2024-08-06',
+
          #activity=11725758693
      )
      Sm = Summary()
      Sm.run(
-         #s_time_str='2023-05-28',
-         #e_time_str='2024-10-24',
-         #activity=1517693677,
+
+         s_time_str='2018-11-07',
+         e_time_str='2018-12-14',
+         #activity=11725758693,
+
          #gpx=True,
          #elevations=True
          )
