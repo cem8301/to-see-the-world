@@ -40,9 +40,6 @@ class CoordinatesToCountries:
             'idx': [], 'country_code': [], 'coord': []}
         for idx, i in enumerate(ii):
             geo_data['idx'].append(idx)
-            print(self.df_cb_shifted.iloc[[
-                i]].lat.values[0], self.df_cb_shifted.iloc[[
-                i]].lon.values[0])
             cc = self.df_cb_shifted.iloc[[
                 i]].country_code.values[0]
             geo_data['country_code'].append(cc)
@@ -94,4 +91,3 @@ if __name__ == "__main__":
             (25.01570, 102.76066)]*1#Kunming, China
     CTC = CoordinatesToCountries()
     ans = CTC.run(coords)
-    print(ans)
