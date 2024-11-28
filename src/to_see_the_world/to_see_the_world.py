@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from ast import literal_eval
 import configparser
 from datetime import datetime
 import glob
@@ -71,15 +72,22 @@ class Utils:
         return ans
 
 class CountryData:
-    def __init__(self, fname_cc, fname_wad):
-        self.df_cc = pd.read_csv(fname_cc)
-        self.df_wad = pd.read_csv(
-            fname_wad).fillna('unknown')
+    def __init__(self, fname_country_data):
+        # Namibia (NA) is read as NaN
+        self.df_country_data = pd.read_csv(
+            fname_country_data, na_filter = False)
         self.ratio = 70
         
     def get_country_centroids(self):
-        return self.df_cc
-     
+        df_cd = self.df_country_data
+        df_cd['country_centroid'] = \
+            df_cd.country_centroid.apply(
+            lambda x: literal_eval(str(x)))
+        return self.df_country_data[[
+            'country_code',
+            'country_name',
+            'country_centroid']].drop_duplicates()
+
     def get_adm_areas_remain(
         self, adm_visit, tuple_adm):
         adm_visit.sort()
@@ -123,34 +131,51 @@ class CountryData:
         CTC = CoordinatesToCountries()
         df_slice = CTC.run(coords_slice)
         df_slice['id'] = list(df_explode.id)[::slice]
-        df_slice['border_crossings'] = \
+        border_crossings = \
             self.check_border_crossings(df_slice)
+        df_slice['border_crossings'] = \
+            df_slice.id.apply(
+            lambda x: border_crossings[x])
         df_slice = df_slice.drop_duplicates(
-            subset=['id', 'cc', 'admin'])
+            subset=['id', 'country_code', 'admin_name'])
         df_slice = df_slice.groupby('id').agg(
-            {'country': 
-                lambda x: ','.join(list(dict.fromkeys(x))),
-             'cc': 
+            {'country_code': 
                  lambda x: ','.join(list(dict.fromkeys(x))),
-             'admin': ','.join,
+             'admin_name': ','.join,
              'border_crossings': 'mean'}).reset_index()
         df = pd.merge(
-            df, df_slice[['id', 'country', 'cc', 'admin',
+            df, df_slice[['id',
+            'country_code', 'admin_name',
             'border_crossings']], on='id', how='right')
         df.coords = \
             df.coords.apply(tuple)
         df = self.edit_borders(df)
+        df['country_name'] = df.country_code.apply(
+            lambda x: \
+            self.country_code_to_country_name(x))
         return df
 
     def edit_borders(self, df):
+        df = df.sort_values(by='start_date_local')
         df_a = df.get(df.border_crossings > 1)
-        for i, row in df_a.iterrows():
-            cc_col = df.columns.get_loc('cc')
-            country_col = df.columns.get_loc('country')
-            prev_cc = df.iloc[i -1].cc.split(',')
-            cur_cc = row.cc.split(',')
-            next_cc = df.iloc[i +1].cc.split(',')
-            bc = row.border_crossings
+        ids = list(df.id.values)
+        a_ids = list(df_a.id.values)
+        if df.shape[0] <= 3:
+            return df
+        for idx, i in enumerate(ids):
+            if i not in a_ids:
+                continue
+            prev_id = ids[idx - 1]
+            cur_id = i
+            next_id = ids[idx + 1]
+            prev_cc = df.get(df.id == prev_id
+                ).country_code.values[0].split(',')
+            cur_cc = df.get(df.id == cur_id
+                ).country_code.values[0].split(',')
+            next_cc = df.get(df.id == next_id
+                ).country_code.values[0].split(',')
+            bc = df.get(df.id == cur_id
+                ).border_crossings.values[0]
             len_next_cc = len(next_cc)
             if len(cur_cc) == 1:
                 # Skipping, odd data
@@ -161,20 +186,18 @@ class CountryData:
                     if prev_cc == next_cc:
                         # No border crossing.
                         # Set current cur_cc to prev_cc
-                        df.iloc[i, cc_col] = df.iloc[i - 1].cc
-                        df.iloc[i, country_col] = \
-                            df.iloc[i - 1].country
-                    elif prev_cc[0] == cur_cc[0] \
-                        and next_cc[0] == cur_cc[1]:
+                        df.loc[df.id == cur_id, 'country_code'
+                            ] = ','.join(prev_cc)
+                    elif cur_cc[0] in prev_cc and \
+                        cur_cc[1] == next_cc[0]:
                         # A border was crossed,
                         # cur_cc is valid
                         pass
                     else:
                         # Inconclusive,
                         # set cur_cc to prev_cc
-                        df.iloc[i, cc_col] = df.iloc[i - 1].cc
-                        df.iloc[i, country_col] = \
-                            df.iloc[i - 1].country
+                        df.loc[df.id == cur_id, 'country_code'
+                            ] = prev_cc
                 elif bc == 3:
                     # Check for country crossing,
                     # note: cannot currently check for
@@ -187,51 +210,127 @@ class CountryData:
                     else:
                         # Inconclusive.
                         # Set cur_cc to prev_cc
-                        df.iloc[i, cc_col] = df.iloc[i - 1].cc
-                        df.iloc[i, country_col] = \
-                            df.iloc[i - 1].country
+                        df.loc[df.id == cur_id, 'country_code'
+                            ] = ','.join(prev_cc)
                 else:
                     # bc > 3, the data very likely bad.
                     # Set cur_cc to prev_cc
-                    df.iloc[i, cc_col] = df.iloc[i - 1].cc
-                    df.iloc[i, country_col] = \
-                        df.iloc[i - 1].country
+                    df.loc[df.id == cur_id, 'country_code'
+                        ] = ','.join(prev_cc)
+            elif len_next_cc == 2:
+                if cur_cc[0] in prev_cc and \
+                    cur_cc[1] == next_cc[0]:
+                    # A country was crossed.
+                    # cur_cc is valid
+                    pass
+                else:
+                    # Inconclusive,
+                    # set cur_cc to prev_cc
+                    df.loc[df.id == cur_id, 'country_code'
+                        ] = ','.join(prev_cc)
             else:
                 # len(next_cc) > 1. There is likely
                 # some bad data. Set cur_cc to prev_cc  
-                df.iloc[i, cc_col] = df.iloc[i - 1].cc
-                df.iloc[i, country_col] = \
-                    df.iloc[i - 1].country
+                df.loc[df.id == cur_id, 'country_code'
+                    ] = ','.join(prev_cc)
+        return df
+
+    def edit_borders2(self, df):
+        df.to_pickle('test.pickle')
+        exit()
+        df_a = df.get(df.border_crossings > 1)
+        if df.shape[0] <= 3:
+            return df
+        for i, row in df_a.iterrows():
+            cc_col = df.columns.get_loc(
+                'country_code')
+            prev_cc = df.iloc[i -1].country_code.split(',')
+            cur_cc = row.country_code.split(',')
+            next_cc = df.iloc[i +1].country_code.split(',')
+            bc = row.border_crossings
+            len_next_cc = len(next_cc)
+            if len(cur_cc) == 1:
+                # Skipping, odd data
+                continue
+            if len_next_cc == 1:
+                if bc == 2:
+                    # Check for standard border crossing
+                    if prev_cc == next_cc:
+                        # No border crossing.
+                        # Set current cur_cc to prev_cc
+                        df.iloc[i, cc_col] = \
+                            df.iloc[i - 1].country_code
+                    #elif prev_cc[0] == cur_cc[0] \
+#                        and cur_cc[1] == next_cc[0]:
+#                         # A border was crossed,
+#                         # cur_cc is valid
+#                        pass
+                    elif cur_cc[0] in prev_cc and \
+                        cur_cc[1] == next_cc[0]:
+                        # A border was crossed,
+                        # cur_cc is valid
+                        pass
+                    else:
+                        # Inconclusive,
+                        # set cur_cc to prev_cc
+                        df.iloc[i, cc_col] = \
+                            df.iloc[i - 1].country_code
+                elif bc == 3:
+                    # Check for country crossing,
+                    # note: cannot currently check for
+                    # re-entering the original country
+                    if prev_cc == cur_cc[0] \
+                        and len(cur_cc) == 3:
+                        # A country was crossed.
+                        # cur_cc is valid
+                        pass
+                    else:
+                        # Inconclusive.
+                        # Set cur_cc to prev_cc
+                        df.iloc[i, cc_col] = \
+                            df.iloc[i - 1].country_code
+                else:
+                    # bc > 3, the data very likely bad.
+                    # Set cur_cc to prev_cc
+                    df.iloc[i, cc_col] = \
+                        df.iloc[i - 1].country_code
+            else:
+                # len(next_cc) > 1. There is likely
+                # some bad data. Set cur_cc to prev_cc  
+                df.iloc[i, cc_col] = \
+                    df.iloc[i - 1].country_code
         return df
         
     def check_border_crossings(self, df):
-        bc = []
+        bc = {}
         for i in sorted(list(set(df.id))):
             dfa = df.get(df.id == i)
-            num_bc = len(dfa.groupby([dfa['cc'].ne(
-                dfa['cc'].shift()).cumsum(), 'cc']
+            num_bc = len(dfa.groupby(
+                [dfa['country_code'].ne(
+                dfa['country_code'].shift()
+                ).cumsum(), 'country_code']
                 ).size())
-            bc += [num_bc] * len(dfa)
-        return bc[::-1]
+            bc[i] = num_bc
+        return bc
     
-    def cc_to_country(self, cc):
-        try:
-            ans = list(self.df_cc[
-                self.df_cc.country == cc]['name'])[0]
-        except IndexError as ie:
-            ans = 'unknown'
-            #print(f'{ie}: for {cc}')
+    def country_code_to_country_name(self, cc):
+        ans = ''
+        cc_list = cc.split(',')
+        for c in cc_list:
+            if len(ans) > 0:
+                ans += ','
+            ans +=  list(self.df_country_data.get(
+                self.df_country_data.country_code \
+                == c)['country_name'])[0]
         return ans
             
-    def get_admin_tracking(self, df, country):
-        #NAME,COUNTRY,ISO_CC,ADMINTYPE
-        #Badakhshān,Afghanistan,AF,Province
-        adm_visit = list(df.admin.values)
-        tot_country_adm = self.df_wad[
-            self.df_wad.country.str.contains(
-            country)][['name', 'admin_type']]
+    def get_admin_tracking(self, df, cc):
+        adm_visit = list(df.admin_name.values)
+        tot_country_adm = self.df_country_data.get(
+            self.df_country_data.country_code == cc)[[
+                'admin_name', 'admin_type']]
         tuple_adm = list(zip(
-            tot_country_adm.name,
+            tot_country_adm.admin_name,
             tot_country_adm.admin_type))
         adm_remain, visit_official =\
             self.get_adm_areas_remain(
@@ -267,14 +366,10 @@ class StravaData:
         self.df_base = self.U.create_base(
             self.pickles)
         self.print_df_size_by_a_id(self.df_base)
-        fname_cc = self.config.get(
+        fname_country_data = self.config.get(
             'path',
-            'fname_country_centroids')
-        fname_wad = self.config.get(
-            'path',
-            'fname_world_administrative_divisions')
-        self.CD = CountryData(
-            fname_cc, fname_wad)
+            'fname_country_data')
+        self.CD = CountryData(fname_country_data)
         try:
             self.headers = self.get_headers(
                 self.code)
@@ -550,11 +645,13 @@ class Summary:
                  len(df_a_id.get(df_a_id.moving_time 
                      >= self.full_day_hrs/self.sec_to_hr))
              countries = list(set(','.join(
-                 df_a_id.country.values.tolist()).split(',')))
-             admins = list(set(','.join(
-                 df_a_id.admin.values.tolist()).split(',')))
+                 df_a_id.country_name.values.tolist()
+                 ).split(',')))
+             admin_names = list(set(','.join(
+                 df_a_id.admin_name.values.tolist()
+                 ).split(',')))
              countries.sort()
-             admins.sort()
+             admin_names.sort()
              print(f'Athlete: {a_id}')
              print(f'    Total Distance: {dist} '
                       f'{self.dist_label}')
@@ -572,8 +669,9 @@ class Summary:
                       f'{num_full_day}')
              print(f'    Countries ({len(countries)}): '    
                       f'{", ".join(countries)}')
-             print(f'    Admin Areas: ({len(admins)}): ' 
-                      f'{", ".join(admins)}')
+             print('     Admin Areas: '
+                      f'({len(admin_names)}): ' 
+                      f'{", ".join(admin_names)}')
              if gpx:
                  fname=f'{a_id}_{"_".join(countries)}.gpx'
                  print(f'Saving gpx file as: {fname}')
@@ -706,16 +804,9 @@ class Map:
             'map_emoji']
         self.country_flag = self.config._sections[
             'country_flag']
-        fname_cc = self.config.get(
-            'path',
-            'fname_country_centroids')
-        fname_wad = self.config.get(
-            'path',
-            'fname_world_administrative_divisions')
-        self.CD = CountryData(
-            fname_cc, fname_wad)
-        self.df_c = \
-            self.CD.get_country_centroids()
+        fname_country_data = self.config.get(
+            'path', 'fname_country_data')
+        self.CD = CountryData(fname_country_data)
         self.U = Utils()
         self.pickles = self.U.get_local_pickle_files()
 
@@ -746,19 +837,20 @@ class Map:
             autoZIndex=True))
 
     def create_country_summaries(self, df):
-         for _, row in self.df_c.iterrows():
-             cc = row['country']
-             name = row['name']
+         df_cc = self.CD.get_country_centroids()
+         for _, row in df_cc.iterrows():
+             cc = row['country_code']
+             country_name = row['country_name']
              if pd.isna(cc):
                  continue
-             popup = self.get_popup(df, cc, name)
+             popup = self.get_popup(
+                 df, cc, country_name)
              if len(popup) == 0:
                  continue
              mk = folium.Marker(
-                 location=[row.latitude,
-                                   row.longitude],
-                 icon= folium.features.CustomIcon(
-                     icon_image= self.config.get(
+                 location = row.country_centroid,
+                 icon = folium.features.CustomIcon(
+                     icon_image = self.config.get(
                          'map', 'map_icon'),
                      icon_size=(10,10),
                      icon_anchor=(0,0),
@@ -795,7 +887,8 @@ class Map:
             'Administrative Areas Visited':[],
             'Administrative Areas Remain':[],
             'Top Words!':[]}
-        dfc = df[df.cc.apply(str).str.contains(cc)]
+        dfc = df[df.country_code.apply(
+            str).str.contains(cc)]
         if len(dfc) == 0:
             return ''
         for a_id in self.athlete_ids_list:
@@ -809,8 +902,7 @@ class Map:
             moving_time = round(
                 dfa['moving_time_hrs'].sum(), 1)
             adm_ratio, adm_visit, adm_remain = \
-                self.CD.get_admin_tracking(
-                dfa, name)
+                self.CD.get_admin_tracking(dfa, cc)
             top_words = self.get_top_words(dfa)
             popup['Athlete'].append(a_id)
             popup['Number of Rides'].append(
@@ -869,9 +961,9 @@ class Map:
     
     def get_country_flag(self, cc):
          emojis = ''
-         for cc in cc.lower().split(','):
-             if cc.strip() in self.country_flag:
-                 emojis += self.country_flag[cc.strip()]
+         for c in cc.lower().split(','):
+             if c.strip() in self.country_flag:
+                 emojis += self.country_flag[c.strip()]
          return emojis
      
     def get_link(self, id):
@@ -893,7 +985,8 @@ class Map:
 
     def create_lines(self, df, a_ids):
         df['emoji'] = df['type'].apply(self.get_emoji) +\
-            df['cc'].apply(self.get_country_flag)
+            df['country_code'].apply(
+            self.get_country_flag)
         df['link'] = df['id'].apply(self.get_link)
         df['distance'] = round(df['distance'] * \
             self.dist_conv, 1)
@@ -1042,19 +1135,19 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=08765a8ce5513e1665f2c3d6b453e770d8944bbf&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=72d5749b072b1fa75274c5a840cc0af116ea2130&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
-         #s_time_str='2023-05-20',
-         #e_time_str='2024-08-06',
+         #s_time_str='2018-04-15',
+         #e_time_str='2018-05-15',
          #activity=11725758693
      )
      Sm = Summary()
      Sm.run(
          #s_time_str='2023-05-28',
          #e_time_str='2024-10-24',
-         #activity=11725758693,
+         #activity=1517693677,
          #gpx=True,
          #elevations=True
          )
