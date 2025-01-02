@@ -53,6 +53,18 @@ class Utils:
     
     def get_a_id_list(self, df):
         return list(set(df.get('athlete/id', {0})))
+        
+    def limit_time(self, time_str, df, start=True):
+        if time_str:
+            if start:
+                 print(f'Start Time: {time_str}')
+                 df = df.get(
+                     df.start_date_local >= time_str)
+            else:
+                print(f'End Time: {time_str}')
+                df = df.get(
+                     df.start_date_local <= time_str)
+        return df
     
     def encode(self, msg):
         ans = ''
@@ -553,9 +565,9 @@ class Summary:
         elevations=False):
          print('×××××× Summary by Athlete ××××××')
          df = self.U.create_base(self.pickles)
-         df = self.limit_time(
+         df = self.U.limit_time(
              s_time_str, df, start=True)
-         df = self.limit_time(
+         df = self.U.limit_time(
              e_time_str, df, start=False)
          if activity:
              print(
@@ -611,18 +623,6 @@ class Summary:
                  print(f'Saving gpx file as: {fname}')
                  self.save_gpx(
                      df, elevations,fname=fname)
-     
-    def limit_time(self, time_str, df, start=True):
-        if time_str:
-            if start:
-                 print(f'Start Time: {time_str}')
-                 df = df.get(
-                     df.start_date_local >= time_str)
-            else:
-                print(f'End Time: {time_str}')
-                df = df.get(
-                     df.start_date_local <= time_str)
-        return df
               
     def add_elevations(self, lst, elevations):
         if elevations:
@@ -753,6 +753,10 @@ class Map:
             e_time_str=e_time_str,
             activity=activity).dropna(
             subset=['map/summary_polyline'])
+        df = self.U.limit_time(
+             s_time_str, df, start=True)
+        df = self.U.limit_time(
+             e_time_str, df, start=False)
         a_ids = self.U.get_a_id_list(df)
         print(f'Set up folium map for {len(a_ids)} '
             'athletes')
