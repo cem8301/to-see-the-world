@@ -234,72 +234,6 @@ class CountryData:
                 df.loc[df.id == cur_id, 'country_code'
                     ] = ','.join(prev_cc)
         return df
-
-    def edit_borders2(self, df):
-        df.to_pickle('test.pickle')
-        exit()
-        df_a = df.get(df.border_crossings > 1)
-        if df.shape[0] <= 3:
-            return df
-        for i, row in df_a.iterrows():
-            cc_col = df.columns.get_loc(
-                'country_code')
-            prev_cc = df.iloc[i -1].country_code.split(',')
-            cur_cc = row.country_code.split(',')
-            next_cc = df.iloc[i +1].country_code.split(',')
-            bc = row.border_crossings
-            len_next_cc = len(next_cc)
-            if len(cur_cc) == 1:
-                # Skipping, odd data
-                continue
-            if len_next_cc == 1:
-                if bc == 2:
-                    # Check for standard border crossing
-                    if prev_cc == next_cc:
-                        # No border crossing.
-                        # Set current cur_cc to prev_cc
-                        df.iloc[i, cc_col] = \
-                            df.iloc[i - 1].country_code
-                    #elif prev_cc[0] == cur_cc[0] \
-#                        and cur_cc[1] == next_cc[0]:
-#                         # A border was crossed,
-#                         # cur_cc is valid
-#                        pass
-                    elif cur_cc[0] in prev_cc and \
-                        cur_cc[1] == next_cc[0]:
-                        # A border was crossed,
-                        # cur_cc is valid
-                        pass
-                    else:
-                        # Inconclusive,
-                        # set cur_cc to prev_cc
-                        df.iloc[i, cc_col] = \
-                            df.iloc[i - 1].country_code
-                elif bc == 3:
-                    # Check for country crossing,
-                    # note: cannot currently check for
-                    # re-entering the original country
-                    if prev_cc == cur_cc[0] \
-                        and len(cur_cc) == 3:
-                        # A country was crossed.
-                        # cur_cc is valid
-                        pass
-                    else:
-                        # Inconclusive.
-                        # Set cur_cc to prev_cc
-                        df.iloc[i, cc_col] = \
-                            df.iloc[i - 1].country_code
-                else:
-                    # bc > 3, the data very likely bad.
-                    # Set cur_cc to prev_cc
-                    df.iloc[i, cc_col] = \
-                        df.iloc[i - 1].country_code
-            else:
-                # len(next_cc) > 1. There is likely
-                # some bad data. Set cur_cc to prev_cc  
-                df.iloc[i, cc_col] = \
-                    df.iloc[i - 1].country_code
-        return df
         
     def check_border_crossings(self, df):
         bc = {}
@@ -432,7 +366,7 @@ class StravaData:
         df['coords'] = df[
             'map/summary_polyline'].apply(
             polyline.decode)
-        return self.CD.get_geo(df, slice=10)
+        return self.CD.get_geo(df, slice=2)
         
     def get_df_final_time(self, df, a_id,):
         strava_create_time = datetime.strptime(
@@ -1136,23 +1070,19 @@ class Map:
        
 
 if __name__ == "__main__":
-
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=b3c66f2eb7d6146fff87cfd88b3ffd2f6d023a97&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=f53ec40be9b1a6b7d989c621a349aa0281a91eb8&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
-         s_time_str='2023-05-20',
+         s_time_str='2024-01-01',
          #e_time_str='2024-08-06',
-
-         #activity=11725758693
+         #activity=11725858841
      )
      Sm = Summary()
      Sm.run(
-
-         s_time_str='2018-11-07',
-         e_time_str='2018-12-14',
-         #activity=11725758693,
-
+         s_time_str='2024-01-01',
+         #e_time_str='2018-12-14',
+         #activity=11725858841,
          #gpx=True,
          #elevations=True
          )
