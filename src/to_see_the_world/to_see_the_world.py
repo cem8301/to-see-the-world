@@ -3,6 +3,7 @@ from ast import literal_eval
 import configparser
 from datetime import datetime
 import glob
+from math import radians, sin, cos, acos
 from pathlib import Path
 import re
 import time
@@ -65,6 +66,22 @@ class Utils:
                 df = df.get(
                      df.start_date_local <= time_str)
         return df
+    
+    def get_distance(self, df, ida, idb):
+        coordsa = df.get(df.id == ida
+            ).coords.values[0]
+        coordsb = df.get(df.id == idb
+            ).coords.values[0]
+        lata = radians(coordsa[0][0])
+        lona = radians(coordsa[0][1])
+        latb = radians(coordsb[0][0])
+        lonb = radians(coordsb[0][1])
+        mean_radius_earth = float(self.config.get(
+            'units', 'mean_radius_earth'))
+        dist = mean_radius_earth * \
+            acos(sin(lata) * sin(latb) + \
+            cos(lata) * cos(latb) * cos(lona - lonb))
+        return round(dist, 2)
     
     def encode(self, msg):
         ans = ''
@@ -569,6 +586,7 @@ class Summary:
              s_time_str, df, start=True)
          df = self.U.limit_time(
              e_time_str, df, start=False)
+         units = self.config.get('units', 'dist_label')
          if activity:
              print(
                  f'Limit summary to activity: {activity}')
@@ -590,6 +608,8 @@ class Summary:
              num_full_day = \
                  len(df_a_id.get(df_a_id.moving_time 
                      >= self.full_day_hrs/self.sec_to_hr))
+             origin, furthest_point, dist = \
+                 self.get_furthest_point(df_a_id)
              countries = list(set(','.join(
                  df_a_id.country_name.values.tolist()
                  ).split(',')))
@@ -613,6 +633,11 @@ class Summary:
              print('    Number of Full Days'
                       f'(>{self.full_day_hrs} hrs): ' 
                       f'{num_full_day}')
+             print('    Furthest Point From First Ride:')
+             print(f'        Origin: {origin}')
+             print('        Furthest Point: '
+                 f'{furthest_point}')
+             print(f'        Distance: {dist} {units}')
              print(f'    Countries ({len(countries)}): '    
                       f'{", ".join(countries)}')
              print('     Admin Areas: '
@@ -687,6 +712,26 @@ class Summary:
         f = open(f'{self.pwd}/output/{fname}', 'w')
         f.write(xml)
         f.close()
+        
+    def get_furthest_point(self, df):
+        df = df.sort_values(['start_date_local'],
+            ascending = True)
+        A = df.iloc[0]
+        dists = {}
+        for b_id in df.id.values:
+            dists[b_id] = self.U.get_distance(
+                df, A.id, b_id)
+        max_id = max(dists, key=dists.get)
+        max_dist = dists[max_id]
+        B = df.get(df.id == max_id)
+        origin = (
+            f'{A["name"]} ({A["admin_name"]}, '
+            f'{A["country_name"]})')
+        furthest_point = (
+            f'{B.name.values[0]} '
+            f'({B.admin_name.values[0]}, '
+            f'{B.country_name.values[0]})')
+        return origin, furthest_point, max_dist
   
 
 class Map:
@@ -1084,7 +1129,7 @@ if __name__ == "__main__":
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2024-01-01',
+         s_time_str='2023-05-28',
          #e_time_str='2018-12-14',
          #activity=11725858841,
          #gpx=True,
