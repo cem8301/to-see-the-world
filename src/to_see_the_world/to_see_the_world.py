@@ -608,7 +608,7 @@ class Summary:
              num_full_day = \
                  len(df_a_id.get(df_a_id.moving_time 
                      >= self.full_day_hrs/self.sec_to_hr))
-             origin, furthest_point, dist = \
+             origin, furthest_point, fp_dist = \
                  self.get_furthest_point(df_a_id)
              countries = list(set(','.join(
                  df_a_id.country_name.values.tolist()
@@ -637,7 +637,7 @@ class Summary:
              print(f'        Origin: {origin}')
              print('        Furthest Point: '
                  f'{furthest_point}')
-             print(f'        Distance: {dist} {units}')
+             print(f'        Distance: {fp_dist} {units}')
              print(f'    Countries ({len(countries)}): '    
                       f'{", ".join(countries)}')
              print('     Admin Areas: '
@@ -1119,17 +1119,17 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=f53ec40be9b1a6b7d989c621a349aa0281a91eb8&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=6bced6865cacf6057ab9e7fb2f6ba125d347629e&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
-         s_time_str='2024-01-01',
+         #s_time_str='2024-01-01',
          #e_time_str='2024-08-06',
          #activity=11725858841
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2023-05-28',
+         #s_time_str='2023-05-28',
          #e_time_str='2018-12-14',
          #activity=11725858841,
          #gpx=True,
