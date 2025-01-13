@@ -78,10 +78,13 @@ class CoordinatesToCountries:
 
 
 if __name__ == "__main__":
-    ans = ['LS', 'LS', 'CN','LA','LA','VN','CN','CN','CN']
     coords = [
-            (-30.50521, 27.65147), # Lesotho
-            (-30.35833, 27.77488), #Lesotho
+            (22.9219, 105.86972), #vietnam
+            (22.92331, 105.87171), #china
+            (41.25802, 1.25877), #Spain
+            (42.46775, 1.49288), #Andorra
+            (-29.62553, 28.18724), # Lesotho
+            (-30.35423, 27.80018), #Lesotho
             (21.19285, 101.69193), #china
             (21.68350, 102.10566), #laos
             (19.88874, 102.13589), #laos
@@ -91,3 +94,5 @@ if __name__ == "__main__":
             (25.01570, 102.76066)]*1#Kunming, China
     CTC = CoordinatesToCountries()
     ans = CTC.run(coords)
+    print(ans)
+    print(ans.get(ans.country_code == 'CN')[['coord']])
