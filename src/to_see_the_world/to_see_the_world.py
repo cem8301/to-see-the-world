@@ -26,9 +26,9 @@ from coordinates_to_countries import CoordinatesToCountries
 
 class Utils:
     def __init__(self):
-        self.config = configparser.ConfigParser()
-        self.config.read('config.ini')
         self.pwd = Path.cwd()
+        self.config = configparser.ConfigParser()
+        self.config.read(f'{self.pwd}/config.ini')
         self.col_names = self.config.get(
             'data', 'col_names').split(', ')
         
@@ -55,6 +55,10 @@ class Utils:
     def get_a_id_list(self, df):
         return list(set(df.get('athlete/id', {0})))
         
+    def get_cc(self, df, id):
+        return df.get(df.id == id
+            ).country_code.values[0].split(',')
+        
     def limit_time(self, time_str, df, start=True):
         if time_str:
             if start:
@@ -72,8 +76,8 @@ class Utils:
             ).coords.values[0]
         coordsb = df.get(df.id == idb
             ).coords.values[0]
-        lata = radians(coordsa[0][0])
-        lona = radians(coordsa[0][1])
+        lata = radians(coordsa[-1][0])
+        lona = radians(coordsa[-1][1])
         latb = radians(coordsb[0][0])
         lonb = radians(coordsb[0][1])
         mean_radius_earth = float(self.config.get(
@@ -103,10 +107,11 @@ class Utils:
 class CountryData:
     def __init__(self, fname_country_data):
         # Namibia (NA) is read as NaN
+        self.U = Utils()
         self.df_country_data = pd.read_csv(
             fname_country_data, na_filter = False)
         self.ratio = 70
-        0
+
     def get_country_centroids(self):
         df_cd = self.df_country_data
         df_cd['country_centroid'] = \
@@ -197,12 +202,9 @@ class CountryData:
             prev_id = ids[idx - 1]
             cur_id = i
             next_id = ids[idx + 1]
-            prev_cc = df.get(df.id == prev_id
-                ).country_code.values[0].split(',')
-            cur_cc = df.get(df.id == cur_id
-                ).country_code.values[0].split(',')
-            next_cc = df.get(df.id == next_id
-                ).country_code.values[0].split(',')
+            prev_cc = self.U.get_cc(df, prev_id)
+            cur_cc = self.U.get_cc(df, cur_id)
+            next_cc = self.U.get_cc(df, next_id)
             bc = df.get(df.id == cur_id
                 ).border_crossings.values[0]
             len_next_cc = len(next_cc)
@@ -315,10 +317,11 @@ class CountryData:
 class StravaData:
     def __init__(
         self, pickles='', http_with_code=''):
+        self.pwd = Path.cwd()
         self.config = configparser.ConfigParser()
-        self.config.read('config.ini')
+        self.config.read(f'{self.pwd}/config.ini')
         self.secrets = configparser.ConfigParser()
-        self.secrets.read('secrets.ini')
+        self.secrets.read(f'{self.pwd}/secrets.ini')
         self.U = Utils()
         self.pickles = pickles
         self.code = \
@@ -332,7 +335,8 @@ class StravaData:
         fname_country_data = self.config.get(
             'path',
             'fname_country_data')
-        self.CD = CountryData(fname_country_data)
+        self.CD = CountryData(
+            f'{self.pwd}/{fname_country_data}')
         try:
             self.headers = self.get_headers(
                 self.code)
@@ -556,8 +560,9 @@ class StravaData:
 class Summary:
     def __init__(self):
         self.U = Utils()
+        self.pwd = Path.cwd()
         self.config = configparser.ConfigParser()
-        self.config.read('config.ini')
+        self.config.read(f'{self.pwd}/config.ini')
         self.pickles = self.U.get_local_pickle_files()
         self.dist_conv = float(
             self.config.get('units', 'dist_conv'))
@@ -736,8 +741,9 @@ class Summary:
 
 class Map:
     def __init__(self):
+        self.pwd = Path.cwd()
         self.config = configparser.ConfigParser()
-        self.config.read('config.ini')
+        self.config.read(f'{self.pwd}/config.ini')
         self.m = folium.Map()
         selection = self.config.get(
             'map', 'tiles').split(', ')
@@ -786,7 +792,8 @@ class Map:
             'country_flag']
         fname_country_data = self.config.get(
             'path', 'fname_country_data')
-        self.CD = CountryData(fname_country_data)
+        self.CD = CountryData(
+            f'{self.pwd}/{fname_country_data}')
         self.U = Utils()
         self.pickles = self.U.get_local_pickle_files()
 
