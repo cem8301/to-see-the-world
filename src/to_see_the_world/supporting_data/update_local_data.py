@@ -184,14 +184,14 @@ class Datasets():
             df = pd.read_csv(
                 self.fname_shifted_boundaries,
                 na_filter = False)
-            ls = list(zip(
-                df.get(df.country_code== 'LS').lat,
-                df.get(df.country_code== 'LS').lon))
-            za = list(zip(
-                df.get(df.country_code== 'ZA').lat,
-                df.get(df.country_code== 'ZA').lon))
-            data = {'LS': ls}
-            #self.SB.save_gpx(data)
+            es = list(zip(
+                df.get(df.country_code== 'ES').lat,
+                df.get(df.country_code== 'ES').lon))
+            ad = list(zip(
+                df.get(df.country_code== 'AD').lat,
+                df.get(df.country_code== 'AD').lon))
+            data = {'AD': ad, 'ES': es}
+            self.SB.save_gpx(data)
             coords = [-30.48457889491692,
                 27.61236683325842]
             ans = df.get(df.lat== coords[0])
@@ -201,5 +201,5 @@ class Datasets():
 if __name__ == "__main__":
     D = Datasets()
     D.run_country_boundaries()
-    #D.run_country_dara()
+    #D.run_country_data()
     D.test_country_boundaries_shifted_file()

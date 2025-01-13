@@ -42,7 +42,13 @@ not in shifted borders file, but in country_data:
 'WF': 'Wallis and Futuna',
 'YT': 'Mayotte'}
 
-improve country centroid for convae shapes using zonal thickness
+improve country centroid for concave shapes using zonal thickness
 
 
+# island countries
+https://worldpopulationreview.com/country-rankings/island-countries
+
+
+# world countries better borders:
+https://hub.arcgis.com/datasets/esri::world-countries/explore?location=53.523596%2C-3.907034%2C5.64&showTable=true
 

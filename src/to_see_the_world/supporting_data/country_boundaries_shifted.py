@@ -10,23 +10,23 @@ class ShiftBoundaries:
     def __init__(self):
         self.pwd = Path.cwd().parent
      
-    def run(self, polygons, offset=-10.0):
+    def run(self, polygons):
         pshift = {}
         for polygon in polygons:
             print(f'Shifting {polygon}')
             if polygon == 'LS' \
                 or polygon == 'SM' \
                 or polygon == 'VA':
-                #Lesotho(LS) is within South Africa (ZA)
+                #Lesotho(LS) is within South Africa (ZA).
                 #LS, needs to seperate its shifted border
                 #by a greater value than its neighbor,
                 #else their two borders are equal.
                 #Same is with San Marino (SM) and
                 # Vatican City (VA). Their
                 #borders are completely within Italy (IT)
-                offset = -10000.0
+                offset = -1000.0
             else:
-                offset = -10.0
+                offset = -2.0
             coords = polygons[polygon]
             depth = self.get_depth(coords)
             solution = []
@@ -50,11 +50,13 @@ class ShiftBoundaries:
         pco = pyclipper.PyclipperOffset()
         pco.AddPath(
             subj,
-            pyclipper.JT_ROUND,
+            pyclipper.JT_MITER,
             pyclipper.ET_CLOSEDPOLYGON)
         ret = pco.Execute(offset)
         solution.extend(
             pyclipper.scale_from_clipper(ret)[0])
+        solution  = [[round(s[0], 9), round(s[1], 9)
+            ] for s in solution]
         return solution
 
     def get_depth(self, lst):
