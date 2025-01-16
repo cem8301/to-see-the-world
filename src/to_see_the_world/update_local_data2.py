@@ -5,21 +5,23 @@ import pandas as pd
 from pathlib import Path
 import requests
 
-from country_boundaries_shifted import ShiftBoundaries
+from supporting_data.country_boundaries_shifted import ShiftBoundaries
 
     
 class Datasets():
     def __init__(self):
-        self.pwd = Path.cwd().parent
+        self.pwd = Path.cwd()
         self.config = configparser.ConfigParser()
         self.config.optionxform = str
         self.config.read(f'{self.pwd}/config.ini')
         self.country_code_converter = \
             self.config._sections[
             'country_code_converter']
-        self.fname_country_data = 'country_data.csv'
+        self.fname_country_data = self.config.get(
+            'path', 'fname_country_data')
         self.fname_shifted_boundaries = \
-            'country_boundaries_shifted.csv'
+            self.config.get('path',
+            'fname_country_boundaries_shifted')
         self.SB = ShiftBoundaries()
         
     def run_country_boundaries(self):
@@ -49,7 +51,7 @@ class Datasets():
         self.save_shifted_boundaries(flat)
        
     def run_country_data(self):
-        if Path(f'{self.pwd}/supporting_data/'
+        if Path(f'{self.pwd}/'
             f'{self.fname_shifted_boundaries}'
             ).is_file():
             print(f'{self.fname_shifted_boundaries} '
@@ -207,7 +209,7 @@ class Datasets():
             
     def test_country_data_file(self):
         if Path(
-            f'{self.pwd}/supporting_data/'
+            f'{self.pwd}/'
             f'{self.fname_country_data}').is_file():
             print(f'{self.fname_country_data} exists')
             df = pd.read_csv(
@@ -216,7 +218,9 @@ class Datasets():
                 
     def test_country_boundaries_shifted_file(self,
         country_codes):
-        if Path(f'{self.pwd}/supporting_data/'
+        print(f'{self.pwd}/'
+            f'{self.fname_shifted_boundaries}')
+        if Path(f'{self.pwd}/'
             f'{self.fname_shifted_boundaries}'
             ).is_file():
             print(f'{self.fname_shifted_boundaries} '
