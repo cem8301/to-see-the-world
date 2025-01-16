@@ -4,3 +4,4 @@
 /src/to_see_the_world/output/*
 /src/to_see_the_world/athlete_data_local/*
 /src/to_see_the_world/secrets.ini
+/src/to_see_the_world/__pycache__
