@@ -5,8 +5,9 @@ from time import time
 
 import pandas as pd
 
+from update_local_data2 import Datasets
 from coordinates_to_countries import CoordinatesToCountries
-from to_see_the_world import CountryData, Utils
+from to_see_the_world import CountryData, Utils, Summary
 
 
 class TestGetGeo():
@@ -18,6 +19,7 @@ class TestGetGeo():
             'path', 'fname_country_data')
         self.CD = CountryData(fname_country_data)
         self.U = Utils()
+        self.Sm = Summary()
         
         # Using Jacob's data between 2017-2024
         # Below is a list of every expected border 
@@ -128,12 +130,12 @@ class TestGetGeo():
             13227992363: 'LA,TH'
         }
         
-    def run(self, a_id=[]):
+    def run(self, a_ids=[], output_geo= False):
         pickle = f'{self.pwd}/test_get_geo.pickle'
         df  = pd. read_pickle(pickle)
         df = df.get(df['coords'].str.len() != 0)
-        if a_id:
-            df = df.get(df.id.isin(a_id))
+        if a_ids:
+            df = df.get(df.id.isin(a_ids))
             
         start = time()
         df = self.get_geo(df, 20)
@@ -156,6 +158,17 @@ class TestGetGeo():
         print(f'Extra BCs: {len(calc_bad)}')
         for c in calc_bad:
             print(f'{c}, {calc_bad[c]}')
+        
+        if output_geo:
+            print('Output Geo requested. Look in the '
+                'output folder for gpx files -->')
+            for a_id in a_ids:
+                D = Datasets()
+                country_codes = self.ans[a_id].split(',')
+                D.test_country_boundaries_shifted_file(
+                    country_codes)
+                self.Sm.run(activity=a_id, gpx=True)
+
     
     def get_missed(self, df):
         missed = {}
@@ -335,4 +348,4 @@ class TestGetGeo():
 
 if __name__ == "__main__":
     TGG = TestGetGeo()
-    TGG.run(a_id=[969217846])
+    TGG.run(a_ids=[1002142028], output_geo=True)

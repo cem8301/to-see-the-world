@@ -8,7 +8,7 @@ import pyclipper
 
 class ShiftBoundaries:
     def __init__(self):
-        self.pwd = Path.cwd().parent
+        self.pwd = Path.cwd()
      
     def run(self, polygons):
         pshift = {}
@@ -80,7 +80,7 @@ class ShiftBoundaries:
         fname='shifted_boundaries.csv'):
         df = pd.DataFrame.from_dict(flat)
         df.to_csv(
-            f'{self.pwd}/supporting_data/{fname}',
+            f'{self.pwd}/{fname}',
             index = False)
             
     def save_gpx(self, polygons):
