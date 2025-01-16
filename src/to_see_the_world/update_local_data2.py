@@ -35,7 +35,7 @@ class Datasets():
             'KI', 'SC', 'GD', 'FM', 'TON', 'VC',
             'AG', 'DM', 'KN', 'MH', 'PW', 'NR', 'TV']
         large_cc = ['DK', 'ID']#['RU', 'DK', 'CA', 'US']
-        for cc in ['TH']:#self.country_code_converter:
+        for cc in self.country_code_converter:
             country_polygons = \
                 self.get_country_boundaries(cc)
             flat_cc  = self.shift_country_boundaries(
