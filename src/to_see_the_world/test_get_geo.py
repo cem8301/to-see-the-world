@@ -171,9 +171,8 @@ class TestGetGeo():
             for a_id in a_ids:
                 df_aid = df.get(df.id == a_id)
                 D = Datasets()
-                country_codes = self.ans[a_id].split(',')
                 D.test_country_boundaries_shifted_file(
-                    country_codes)
+                    df_aid.country_code.values[0].split(','))
                 fname=f'{a_id}_test_get_geo.gpx'
                 self.Sm.save_gpx(
                      df_aid, elevations=False,
@@ -184,7 +183,8 @@ class TestGetGeo():
                     df_aid.closest_boundary_coord:
                     for c in cbc:
                         r = self.df_cbs.get(
-                            self.df_cbs.lat == c[0])
+                            self.df_cbs.lat == c[0]).get(
+                            self.df_cbs.lon == c[1])
                         print(r)
 
     def get_missed(self, df):
@@ -370,4 +370,4 @@ class TestGetGeo():
 
 if __name__ == "__main__":
     TGG = TestGetGeo()
-    TGG.run(a_ids=[1002142028], output_geo=True)
+    TGG.run(a_ids=[1002142028,11725737598], output_geo=True)
