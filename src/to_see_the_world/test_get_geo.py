@@ -15,6 +15,12 @@ class TestGetGeo():
         self.pwd = Path.cwd()
         config = configparser.ConfigParser()
         config.read(f'{self.pwd}/config.ini')
+        fname_country_boundaries_shifted = \
+            config.get(
+            'path', 'fname_country_boundaries_shifted')
+        self.df_cbs = pd.read_csv(
+                fname_country_boundaries_shifted,
+                na_filter = False)
         fname_country_data = config.get(
             'path', 'fname_country_data')
         self.CD = CountryData(fname_country_data)
@@ -163,13 +169,24 @@ class TestGetGeo():
             print('Output Geo requested. Look in the '
                 'output folder for gpx files -->')
             for a_id in a_ids:
+                df_aid = df.get(df.id == a_id)
                 D = Datasets()
-                country_codes = self.ans[a_id].split(',')
                 D.test_country_boundaries_shifted_file(
-                    country_codes)
-                self.Sm.run(activity=a_id, gpx=True)
+                    df_aid.country_code.values[0].split(','))
+                fname=f'{a_id}_test_get_geo.gpx'
+                self.Sm.save_gpx(
+                     df_aid, elevations=False,
+                     fname=fname)
+                print('Closest Country Boundary '
+                    'Coordinates:')
+                for cbc in \
+                    df_aid.closest_boundary_coord:
+                    for c in cbc:
+                        r = self.df_cbs.get(
+                            self.df_cbs.lat == c[0]).get(
+                            self.df_cbs.lon == c[1])
+                        print(r)
 
-    
     def get_missed(self, df):
         missed = {}
         for a in self.ans:
@@ -212,17 +229,22 @@ class TestGetGeo():
             df_slice = CTC.run(coords_slice)
             df_slice['id'] = list(df_explode.id)
             df_slice = df_slice.drop_duplicates(
-                subset=['id', 'country_code',
-                'admin_name'])
+                subset=['id',
+                'country_code',
+                'admin_name',
+                'closest_boundary_coord'])
             df_slice = df_slice.groupby('id').agg(
                 {'country_code': 
                      lambda x: ','.join(list(
                      dict.fromkeys(x))),
-                 'admin_name': ','.join}
+                 'admin_name': ','.join,
+                 'closest_boundary_coord':
+                     lambda x: x}
                  ).reset_index()
             df = pd.merge(
                 df, df_slice[['id', 'country_code',
-                'admin_name']], on='id', how='right')
+                'admin_name', 'closest_boundary_coord'
+                ]], on='id', how='right')
             df.coords = \
                 df.coords.apply(tuple)
             #df, dbg = edit_borders(df, debug=True)
@@ -348,4 +370,4 @@ class TestGetGeo():
 
 if __name__ == "__main__":
     TGG = TestGetGeo()
-    TGG.run(a_ids=[1002142028], output_geo=True)
+    TGG.run(a_ids=[1002142028,11725737598], output_geo=True)
