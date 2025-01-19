@@ -9,6 +9,12 @@ from update_local_data2 import Datasets
 from coordinates_to_countries import CoordinatesToCountries
 from to_see_the_world import CountryData, Utils, Summary
 
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 2000)
+pd.set_option('display.float_format', '{:20,.20f}'.format)
+pd.set_option('display.max_colwidth', None)
+
 
 class TestGetGeo():
     def __init__(self):
@@ -147,6 +153,7 @@ class TestGetGeo():
         df = self.get_geo(df, 20)
         end = time()
         
+        df.coords =df.coords_simple
         missed = self.get_missed(df)
         num_calc_bc = len(df.get(
             df.border_crossings > 1))
@@ -179,14 +186,29 @@ class TestGetGeo():
                      fname=fname)
                 print('Closest Country Boundary '
                     'Coordinates:')
-                for cbc in \
-                    df_aid.closest_boundary_coord:
-                    for c in cbc:
-                        r = self.df_cbs.get(
-                            self.df_cbs.lat == c[0]).get(
-                            self.df_cbs.lon == c[1])
-                        print(r)
+                cbc = list(df_aid.closest_boundary_coord.values[0])
+                points = list(df_aid.coords.values[0])
+                for idx, point in enumerate(points):
+                    c = cbc[idx]
+                    self.get_closeby_boundaries(c, point)
 
+    def get_closeby_boundaries(self, c, point):
+        delta = 0.00001
+        data = self.df_cbs.get(
+            self.df_cbs.lat + delta >= c[0]).get(
+            self.df_cbs.lat - delta <= c[0]).get(
+            self.df_cbs.lon + delta >= c[1]).get(
+            self.df_cbs.lon - delta <= c[1])
+        track = {}
+        for _, row in data.iterrows():
+            r = self.U.get_distance_from_coords(
+                [row.lat, row.lon], point, 10)
+            print(f'country: {row.country_code}, '
+                f'lat: {row.lat}, lon: {row.lon}, dist: {r}')
+            track[row.country_code] = r
+        print('Closest Country: '
+            f'{min(track, key=track.get)}')
+        
     def get_missed(self, df):
         missed = {}
         for a in self.ans:
@@ -245,7 +267,9 @@ class TestGetGeo():
                 df, df_slice[['id', 'country_code',
                 'admin_name', 'closest_boundary_coord'
                 ]], on='id', how='right')
-            df.coords = \
+            df.coords_simple = \
+                df.coords_simple.apply(tuple)
+            df.coords= \
                 df.coords.apply(tuple)
             #df, dbg = edit_borders(df, debug=True)
             df['border_crossings'] = \
@@ -370,4 +394,7 @@ class TestGetGeo():
 
 if __name__ == "__main__":
     TGG = TestGetGeo()
-    TGG.run(a_ids=[1002142028,11725737598], output_geo=True)
+    TGG.get_closeby_boundaries(
+        c=[46.690248, 15.643147],
+        point=[46.69027, 15.64220])
+    TGG.run(a_ids=[1002142028], output_geo=True)
