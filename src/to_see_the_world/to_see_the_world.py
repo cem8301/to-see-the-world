@@ -71,21 +71,26 @@ class Utils:
                      df.start_date_local <= time_str)
         return df
     
-    def get_distance(self, df, ida, idb):
+    def get_distance(self, df, ida, idb, roundd=2):
         coordsa = df.get(df.id == ida
-            ).coords.values[0]
+            ).coords.values[0][-1]
         coordsb = df.get(df.id == idb
-            ).coords.values[0]
-        lata = radians(coordsa[-1][0])
-        lona = radians(coordsa[-1][1])
-        latb = radians(coordsb[0][0])
-        lonb = radians(coordsb[0][1])
+            ).coords.values[0][0]
+        return self.get_distance_from_coords(
+            coordsa, coordsb, roundd)
+            
+    def get_distance_from_coords(self,
+        coordsa, coordsb, roundd):
+        lata = radians(coordsa[0])
+        lona = radians(coordsa[1])
+        latb = radians(coordsb[0])
+        lonb = radians(coordsb[1])
         mean_radius_earth = float(self.config.get(
             'units', 'mean_radius_earth'))
         dist = mean_radius_earth * \
             acos(sin(lata) * sin(latb) + \
             cos(lata) * cos(latb) * cos(lona - lonb))
-        return round(dist, 2)
+        return round(dist, roundd)
     
     def encode(self, msg):
         ans = ''
