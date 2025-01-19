@@ -649,10 +649,9 @@ class Summary:
                       f'({len(admin_names)}): ' 
                       f'{", ".join(admin_names)}')
              if gpx:
-                 fname=f'{a_id}_{"_".join(countries)}.gpx'
-                 print(f'Saving gpx file as: {fname}')
+                 fname = f'{a_id}_{"_".join(countries)}.gpx'
                  self.save_gpx(
-                     df, elevations,fname=fname)
+                     df, elevations, fname=fname)
               
     def add_elevations(self, lst, elevations):
         if elevations:
@@ -697,6 +696,7 @@ class Summary:
         return elevations
 
     def save_gpx(self, df, elevations, fname='out'):
+        print(f'Saving gpx file as: {fname}')
         df = df.sort_values(['start_date_local'],
             ascending = True)
         gpx = gpxpy.gpx.GPX()

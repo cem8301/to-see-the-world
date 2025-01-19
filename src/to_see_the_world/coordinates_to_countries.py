@@ -37,20 +37,22 @@ class CoordinatesToCountries:
         tree = KDTree(data, leafsize=30)
         _, ii = tree.query(coords, k=1, workers=-1)
         geo_data = {
-            'idx': [], 'country_code': [], 'coord': []}
+            'idx': [], 'country_code': [],
+            'closest_boundary_coord': []}
         for idx, i in enumerate(ii):
             geo_data['idx'].append(idx)
             cc = self.df_cb_shifted.iloc[[
                 i]].country_code.values[0]
             geo_data['country_code'].append(cc)
-            geo_data['coord'].append(data[i])
+            geo_data['closest_boundary_coord'
+                ].append(data[i])
         return pd.DataFrame(geo_data)
         
     def get_closest_admin(self, df_geo_data):
         geo_data = {
            'idx': [],
             'country_code': [],
-            'coord': [],
+            'closest_boundary_coord': [],
             'admin_name': [],
             'city': []}
         for cc in set(df_geo_data.country_code):
@@ -61,13 +63,16 @@ class CoordinatesToCountries:
             geo_data['idx'] += list(sub_df_gd['idx'])
             geo_data['country_code'] += list(
                 sub_df_gd['country_code'])
-            coord = list(sub_df_gd['coord'])
-            geo_data['coord'] += coord
+            cb_coord = list(sub_df_gd[
+                'closest_boundary_coord'])
+            geo_data['closest_boundary_coord'
+                ] += cb_coord
             data = list(zip(
                 list(sub_df_c['lat']),
                 list(sub_df_c['lon'])))
             tree = KDTree(data, leafsize=30)
-            _, ii = tree.query(coord, k=1, workers=-1)
+            _, ii = tree.query(cb_coord, k=1,
+                workers=-1)
             for i in ii:
                 geo_data['admin_name'].append(
                     sub_df_c.iloc[[i]].admin1.values[0])
@@ -79,6 +84,8 @@ class CoordinatesToCountries:
 
 if __name__ == "__main__":
     coords = [
+            (46.69016,15.64125), # Slovenia
+            (46.69028, 15.64221), # Slovenia
             (22.9219, 105.86972), #vietnam
             (22.92331, 105.87171), #china
             (41.25802, 1.25877), #Spain
@@ -95,4 +102,4 @@ if __name__ == "__main__":
     CTC = CoordinatesToCountries()
     ans = CTC.run(coords)
     print(ans)
-    print(ans.get(ans.country_code == 'CN')[['coord']])
+    print(ans.get(ans.country_code == 'SI')[['closest_boundary_coord']])
