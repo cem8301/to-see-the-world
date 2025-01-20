@@ -39,7 +39,7 @@ class Datasets():
             country_polygons = \
                 self.get_country_boundaries(cc)
             flat_cc  = self.shift_country_boundaries(
-                country_polygons)
+                country_polygons, offset=-10.0)
             if cc in island_cc:
                 slice = 50
             elif  cc in large_cc:
@@ -212,9 +212,9 @@ class Datasets():
         return country_polygons
         
     def shift_country_boundaries(self,
-        country_polygons):
+        country_polygons, offset=-2.0):
         polygons_shifted = self.SB.run(
-            country_polygons, offset=-2.0)
+            country_polygons, offset=offset)
         return self.SB.flatten(polygons_shifted)
         
     def save_shifted_boundaries(self, flat):
