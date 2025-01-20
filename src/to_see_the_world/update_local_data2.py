@@ -26,14 +26,12 @@ class Datasets():
         
     def run_country_boundaries(self):
         flat = {'lat': [], 'lon': [], 'country_code': []}
-        island_cc = ['JP', 'PH', 'GB', 'MG',
-            'AU', 'AQ', 'TW', 'LK', 'HT', 'DO', 'CU',
-            'PG', 'IE', 'NZ', 'SG', 'BH', 'TT',
-            'TL', 'JM', 'CY', 'MU', 'FJ', 'KM',
-            'SB', 'MT', 'MV', 'CV', 'BN', 'BS',
-            'IS', 'VU', 'BB', 'ST', 'WS', 'LC',
-            'KI', 'SC', 'GD', 'FM', 'TON', 'VC',
-            'AG', 'DM', 'KN', 'MH', 'PW', 'NR', 'TV']
+        island_cc = ['AG', 'AQ', 'AU', 'BB', 'BH', 'BS',
+            'CU', 'CV', 'CY', 'DM', 'DO', 'FJ', 'FM', 'GB',
+            'GD', 'HT', 'IE', 'IS', 'JM', 'JP', 'KI', 'KM', 'KN',
+             'LC', 'LK', 'MG', 'MH', 'MT', 'MU', 'MV', 'NR',
+             'NZ', 'PG', 'PH', 'PW', 'SB', 'SC', 'SG', 'ST',
+             'TL', 'TO', 'TT', 'TV', 'TW', 'VC', 'VU', 'WS']
         large_cc = ['DK', 'ID']#['RU', 'DK', 'CA', 'US']
         for cc in self.country_code_converter:
             country_polygons = \
