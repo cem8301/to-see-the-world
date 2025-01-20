@@ -49,8 +49,8 @@ class ShiftBoundaries:
             solution  = [[round(s[0], 9), round(s[1], 9)
                 ] for s in solution]
         else:
-            solution = [[round(coord[1], 9),
-                round(coord[0], 9)] for coord in coords]
+            solution.extend([[round(coord[1], 9),
+                round(coord[0], 9)] for coord in coords])
         return solution
 
     def get_depth(self, lst):
