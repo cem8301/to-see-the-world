@@ -178,8 +178,13 @@ class TestGetGeo():
             for a_id in a_ids:
                 df_aid = df.get(df.id == a_id)
                 D = Datasets()
+                ccs = df_aid.country_code.values[0
+                    ].split(',')
+                if a_id in self.ans:
+                    ccs.extend(self.ans[a_id].split(','))
+                    ccs = list(set(ccs))
                 D.test_country_boundaries_shifted_file(
-                    df_aid.country_code.values[0].split(','))
+                    ccs)
                 fname=f'{a_id}_test_get_geo.gpx'
                 self.Sm.save_gpx(
                      df_aid, elevations=False,
@@ -250,11 +255,6 @@ class TestGetGeo():
             CTC = CoordinatesToCountries()
             df_slice = CTC.run(coords_slice)
             df_slice['id'] = list(df_explode.id)
-            df_slice = df_slice.drop_duplicates(
-                subset=['id',
-                'country_code',
-                'admin_name',
-                'closest_boundary_coord'])
             df_slice = df_slice.groupby('id').agg(
                 {'country_code': 
                      lambda x: ','.join(list(
@@ -398,5 +398,5 @@ if __name__ == "__main__":
 #        c=[46.690248, 15.643147],
 #        point=[46.69027, 15.64220])
     TGG.run(
-        #a_ids=[1002142028], output_geo=True
+        a_ids=[969217846], output_geo=True
         )
