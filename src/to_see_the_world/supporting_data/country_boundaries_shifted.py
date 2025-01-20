@@ -10,7 +10,7 @@ class ShiftBoundaries:
     def __init__(self):
         self.pwd = Path.cwd()
      
-    def run(self, polygons):
+    def run(self, polygons, offset=-2.0):
         pshift = {}
         for polygon in polygons:
             print(f'Shifting {polygon}')
@@ -24,9 +24,7 @@ class ShiftBoundaries:
                 #Same is with San Marino (SM) and
                 # Vatican City (VA). Their
                 #borders are completely within Italy (IT)
-                offset = -1000.0
-            else:
-                offset = -2.0
+                offset = offset * 100
             coords = polygons[polygon]
             depth = self.get_depth(coords)
             solution = []

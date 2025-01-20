@@ -25,8 +25,8 @@ class TestGetGeo():
             config.get(
             'path', 'fname_country_boundaries_shifted')
         self.df_cbs = pd.read_csv(
-                fname_country_boundaries_shifted,
-                na_filter = False)
+             fname_country_boundaries_shifted,
+             na_filter = False)
         fname_country_data = config.get(
             'path', 'fname_country_data')
         self.CD = CountryData(fname_country_data)
@@ -188,8 +188,8 @@ class TestGetGeo():
                     'Coordinates:')
                 cbc = list(df_aid.closest_boundary_coord.values[0])
                 points = list(df_aid.coords.values[0])
-                for idx, point in enumerate(points):
-                    c = cbc[idx]
+                for idx, c in enumerate(cbc):
+                    point = points[idx]
                     self.get_closeby_boundaries(c, point)
 
     def get_closeby_boundaries(self, c, point):
@@ -394,7 +394,9 @@ class TestGetGeo():
 
 if __name__ == "__main__":
     TGG = TestGetGeo()
-    TGG.get_closeby_boundaries(
-        c=[46.690248, 15.643147],
-        point=[46.69027, 15.64220])
-    TGG.run(a_ids=[1002142028], output_geo=True)
+    #TGG.get_closeby_boundaries(
+#        c=[46.690248, 15.643147],
+#        point=[46.69027, 15.64220])
+    TGG.run(
+        #a_ids=[1002142028], output_geo=True
+        )
