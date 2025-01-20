@@ -197,7 +197,7 @@ class Datasets():
         
     def shift_country_boundaries(self,
         country_polygons):
-        polygons_shifted, co = self.SB.run(
+        polygons_shifted = self.SB.run(
             country_polygons, offset=-2.0)
         return self.SB.flatten(polygons_shifted)
         

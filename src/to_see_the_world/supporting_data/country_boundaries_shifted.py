@@ -26,35 +26,31 @@ class ShiftBoundaries:
                 #borders are completely within Italy (IT)
                 offset = offset * 100
             coords = polygons[polygon]
-            depth = self.get_depth(coords)
             solution = []
-            if depth == 2:
+            for coord in coords:
                 solution = self.shift_polygons(
-                    coords, offset, solution)
-            elif depth == 3:
-                for coord in coords:
-                    solution = self.shift_polygons(
-                        coord, offset, solution)
-            else:
-                print(f'Depth of coord array is {depth}.'
-                    'This is unnexpected. Check the data.')
+                    coord, offset, solution)
             pshift[polygon] = solution
         return pshift
 
     def shift_polygons(
-        self, coords, offset, solution):
-        coords = [[c[1], c[0]] for c in coords]
-        subj = pyclipper.scale_to_clipper(coords)
-        pco = pyclipper.PyclipperOffset()
-        pco.AddPath(
-            subj,
-            pyclipper.JT_MITER,
-            pyclipper.ET_CLOSEDPOLYGON)
-        ret = pco.Execute(offset)
-        solution.extend(
-            pyclipper.scale_from_clipper(ret)[0])
-        solution  = [[round(s[0], 9), round(s[1], 9)
-            ] for s in solution]
+        self, coords, offset, solution, min_len=50):
+        if len(coords) >= min_len:
+            coords = [[c[1], c[0]] for c in coords]
+            subj = pyclipper.scale_to_clipper(coords)
+            pco = pyclipper.PyclipperOffset()
+            pco.AddPath(
+                subj,
+                pyclipper.JT_MITER,
+                pyclipper.ET_CLOSEDPOLYGON)
+            ret = pco.Execute(offset)
+            solution.extend(
+                pyclipper.scale_from_clipper(ret)[0])
+            solution  = [[round(s[0], 9), round(s[1], 9)
+                ] for s in solution]
+        else:
+            solution = [[round(coord[1], 9),
+                round(coord[0], 9)] for coord in coords]
         return solution
 
     def get_depth(self, lst):
@@ -104,8 +100,8 @@ class ShiftBoundaries:
 
 if __name__ == "__main__":
     polygons = {
-        'square': [[1, 1], [1, 2], [2,2], [2,1], [1,1]],
-        'triangle': [[0,0], [1,5], [10, -6], [0,0]],
+        'square': [[[1, 1], [1, 2], [2,2], [2,1], [1,1]]],
+        'triangle': [[[0,0], [1,5], [10, -6], [0,0]]],
         'random': [[[0,0], [4,8], [6,5], [0,0]],
             [[1,1], [3,7], [5,4], [1,1]]]}
     SB = ShiftBoundaries()
