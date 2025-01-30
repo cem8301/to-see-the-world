@@ -35,7 +35,7 @@ class ShiftBoundaries:
 
     def shift_polygons(
         self, coords, offset, solution, min_len=50):
-        if len(coords) >= min_len:
+        if len(coords) >= min_len and abs(offset) > 0:
             coords = [[c[1], c[0]] for c in coords]
             subj = pyclipper.scale_to_clipper(coords)
             pco = pyclipper.PyclipperOffset()
