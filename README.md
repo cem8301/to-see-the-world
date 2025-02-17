@@ -49,13 +49,18 @@ To start, visit the [getting started guide](https://developers.strava.com/docs/g
 After my API application is created it looks like this. Note the Client ID and Client Secret. You will need those later. Awesome, part 1 is done!
 ![Alt text](docs/setup/setup2.jpg)
 
-### Install a python IDE
+### Install a python IDE (Running on an Android phone)
 The easiest option is to setup a python IDE. Download [pydroid 3](https://play.google.com/store/apps/details?id=ru.iiec.pydroid3) from google play. 
 
 ### Download the git repo
 You will need the code. Go to the top of this page, click the down arrow next to code, and hit download.
 ![Alt text](docs/setup/setup5.jpg)
 Put the code somewhere your new python IDE can read it. Open up you local  [to_see_the_world.py](https://github.com/cem8301/to-see-the-world/blob/main/src/to_see_the_world/to_see_the_world.py) in pydroid. You will need this when running the code later.
+
+Alternatively,
+```
+git clone ssh://git@github.com/cem8301/to-see-the-world.git
+```
 
 ### Setup your python environment
 You need to pip install all of the required dependencies. This [link](https://www.makeuseof.com/install-pydroid-android/) shows how to get these instaled in pydroid. The required dependencies are shown here:
@@ -77,7 +82,12 @@ tzdata
 wordcloud
 xyzservices
 ```
-Also here in the [requirements.text](https://github.com/cem8301/to-see-the-world/blob/main/requirements.txt) file
+Also here in the [requirements.text](https://github.com/cem8301/to-see-the-world/blob/main/requirements.txt) file.
+
+Alternatively,
+```
+python -m pip install -r requirements.txt
+```
 
 ### Add Strava authentification strings
 Create a new file in the **src/to_see_the_world/** folder. Call it **secrets.ini**:
