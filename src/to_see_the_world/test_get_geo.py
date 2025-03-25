@@ -151,7 +151,7 @@ class TestGetGeo():
             df = df.get(df.id.isin(a_ids))
             
         start = time()
-        df = self.get_geo(df, 20)
+        df = self.get_geo(df, 5)
         end = time()
         
         df.coords =df.coords_simple
@@ -186,7 +186,7 @@ class TestGetGeo():
                     ccs = list(set(ccs))
                 D.test_country_boundaries_shifted_file(
                     ccs)
-                fname=f'{a_id}_test_get_geo.gpx'
+                fname = f'{a_id}_test_get_geo.gpx'
                 self.Sm.save_gpx(
                      df_aid, elevations=False,
                      fname=fname)
@@ -213,8 +213,6 @@ class TestGetGeo():
         ans = df.groupby('country_code', as_index=False)['data_count'].mean()
         print(ans.get(ans.data_count==1))
         
-
-
     def get_closeby_boundaries(self, c, point):
         delta = 0.00001
         data = self.df_cbs.get(
@@ -230,7 +228,7 @@ class TestGetGeo():
                 f'lat: {row.lat}, lon: {row.lon}, dist: {r}')
             track[row.country_code] = r
         print('Closest Country: '
-            f'{min(track, key=track.get)}')
+            f'{min(track, key=track.get)}, point: {point}')
         
     def get_missed(self, df):
         missed = {}
@@ -416,6 +414,6 @@ if __name__ == "__main__":
 #        c=[46.690248, 15.643147],
 #        point=[46.69027, 15.64220])
     TGG.run(
-        a_ids=[975224137], output_geo=True
+        a_ids=[11525331563], output_geo=True
         )
     #TGG.test()
