@@ -38,24 +38,24 @@ Finally, here is a zoomed in version of my current tour. There is a feature on t
 
 ## Setup
 **tldr; 30-40min for initial setup**
-Get your own Strava API token, install a python IDE, download the code, setup your python environment, add Strava authentification strings
+Get your own Strava API token, install a python IDE, download the code, setup your python environment, add Strava authentication strings
 
 ### Get your own Strava API token
 The data for this project is currently all collected from the [Strava API](https://developers.strava.com/) which is publicly available. Individual users sign up for their own API token to run queries against any authenticated user. The tokens are rate limited (by every 15min and by day) and can only accept one user at a time (it is possible to allow for more users but tldr; thats alot of work). So everyone needs their own token! I will go through the process here.
 
-To start, visit the [getting started guide](https://developers.strava.com/docs/getting-started/#:~:text=If%20you%20have%20not%20already,My%20API%20Application%E2%80%9D%20page%20now.). The gist is, if you dont already have a Strava account, create one. Then go [create](https://www.strava.com/settings/api) your API application. The **Athorization Callback Domain** is important. The other fields can be whatever you want. You can always edit them again later. My setup looks like this:
+To start, visit the [getting started guide](https://developers.strava.com/docs/getting-started/#:~:text=If%20you%20have%20not%20already,My%20API%20Application%E2%80%9D%20page%20now.). The gist is, if you dont already have a Strava account, create one. Then go [create](https://www.strava.com/settings/api) your API application. The **Authorization Callback Domain** is important. The other fields can be whatever you want. You can always edit them again later. My setup looks like this:
 ![Alt text](docs/setup/setup1.jpg)
 
 After my API application is created it looks like this. Note the Client ID and Client Secret. You will need those later. Awesome, part 1 is done!
 ![Alt text](docs/setup/setup2.jpg)
 
-### Install a python IDE (Runnng on an Android phone)
-The easiest option is to setup a python IDE. Download [pydroid 3](https://play.google.com/store/apps/details?id=ru.iiec.pydroid3) from google play. 
+### Install a python IDE (Running on an Android phone)
+The easiest option is to setup a python IDE. Download [Pydroid 3](https://play.google.com/store/apps/details?id=ru.iiec.pydroid3) from google play. 
 
 ### Download the git repo
 You will need the code. Go to the top of this page, click the down arrow next to code, and hit download.
 ![Alt text](docs/setup/setup5.jpg)
-Put the code somewhere your new python IDE can read it. Open up you local  [to_see_the_world.py](https://github.com/cem8301/to-see-the-world/blob/main/src/to_see_the_world/to_see_the_world.py) in pydroid. You will need this when running the code later.
+Put the code somewhere your new python IDE can read it. Open up you local  [to_see_the_world.py](https://github.com/cem8301/to-see-the-world/blob/main/src/to_see_the_world/to_see_the_world.py) in Pydroid. You will need this when running the code later.
 
 Alternatively,
 ```
@@ -63,7 +63,7 @@ git clone ssh://git@github.com/cem8301/to-see-the-world.git
 ```
 
 ### Setup your python environment
-You need to pip install all of the required dependencies. This [link](https://www.makeuseof.com/install-pydroid-android/) shows how to get these instaled in pydroid. The required dependencies are shown here:
+You need to pip install all of the required dependencies. This [link](https://www.makeuseof.com/install-pydroid-android/) shows how to get these installed in Pydroid. The required dependencies are shown here:
 ```
 flatten-dict
 folium
@@ -93,7 +93,7 @@ Alternatively,
 python -m pip install -r requirements.txt
 ```
 
-### Add Strava authentification strings
+### Add Strava authentication strings
 Create a new file in the **src/to_see_the_world/** folder. Call it **secrets.ini**:
 ```
 secrets.ini
@@ -104,7 +104,7 @@ Here is the base empty file:
 STRAVA_CLIENT_ID =
 STRAVA_CLIENT_SECRET =
 ```
-Here is the empty file. **Add the Client ID and Client Token** strings from thd **Get your own Strava API token** section into the file.
+Here is the empty file. **Add the Client ID and Client Token** strings from the **Get your own Strava API token** section into the file.
 ![Alt text](docs/setup/setup4.jpg)
 
 Once your environment is setup, you are ready to run!
@@ -114,7 +114,7 @@ Once your environment is setup, you are ready to run!
 Create the Strava authorization link, gather the http link with code, run!, locate the output, notes for future runs
 
 ### Create the Strava authorization link
-In order to gather data, the Strava API requires user authentification. First, replace the string **STRAVA_CLIENT_ID** in the link with your new id from the section above.
+In order to gather data, the Strava API requires user authentication. First, replace the string **STRAVA_CLIENT_ID** in the link with your new id from the section above.
 
 ```https://www.strava.com/oauth/authorize?client_id=STRAVA_CLIENT_ID&response_type=code&redirect_uri=https://www.localhost.com/exchange_token&approval_prompt=force&scope=activity:read_all```
 
