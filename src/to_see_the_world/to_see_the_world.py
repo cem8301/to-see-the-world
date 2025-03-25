@@ -1131,7 +1131,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=64c479b5ff053a2ce3df7b9af2a7c648c6d10417&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=875bb717d4645390eb475c7460f51ac25a99b2d3&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
@@ -1141,8 +1141,8 @@ if __name__ == "__main__":
      )
      Sm = Summary()
      Sm.run(
-         #s_time_str='2023-05-28',
-         #e_time_str='2018-12-14',
+         s_time_str='2024-07-15',
+         #e_time_str='2018-09-16',
          #activity=11725858841,
          #gpx=True,
          #elevations=True

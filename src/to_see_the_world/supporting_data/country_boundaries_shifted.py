@@ -10,7 +10,7 @@ class ShiftBoundaries:
     def __init__(self):
         self.pwd = Path.cwd()
      
-    def run(self, polygons, offset=-2.0):
+    def run(self, polygons, offset=-2.0, min_len=3):
         pshift = {}
         for polygon in polygons:
             print(f'Shifting {polygon}')
@@ -28,15 +28,14 @@ class ShiftBoundaries:
             coords = polygons[polygon]
             solution = []
             for coord in coords:
-                solution = self.shift_polygons(
-                    coord, offset, solution)
+                solution.append(self.shift_polygons(
+                    coord, offset, min_len))
             pshift[polygon] = solution
         return pshift
 
     def shift_polygons(
-        self, coords, offset, solution, min_len=50):
+        self, coords, offset, min_len):
         if len(coords) >= min_len and abs(offset) > 0:
-            coords = [[c[1], c[0]] for c in coords]
             subj = pyclipper.scale_to_clipper(coords)
             pco = pyclipper.PyclipperOffset()
             pco.AddPath(
@@ -44,14 +43,9 @@ class ShiftBoundaries:
                 pyclipper.JT_MITER,
                 pyclipper.ET_CLOSEDPOLYGON)
             ret = pco.Execute(offset)
-            solution.extend(
-                pyclipper.scale_from_clipper(ret)[0])
-            solution  = [[round(s[0], 9), round(s[1], 9)
-                ] for s in solution]
-        else:
-            solution.extend([[round(coord[1], 9),
-                round(coord[0], 9)] for coord in coords])
-        return solution
+            coords = pyclipper.scale_from_clipper(
+                ret)[0]  
+        return coords
 
     def get_depth(self, lst):
         d = 0
@@ -61,18 +55,30 @@ class ShiftBoundaries:
         return d + 1
         
     def flatten(self,
-        polygons, name_col='country_code'):
-        flat = {'lat': [], 'lon': [], name_col: []}
+        polygons, name_col='country_code',
+        lat_first=True, round_val=9):
+        flat = {'lat': [], 'lon': [], name_col: [], 'fid': []}
+        fid = 0
         for polygon in polygons:
             coords = polygons[polygon]
-            flat['lat'] += [x[0] for x in coords]
-            flat['lon'] += [x[1] for x in coords]
-            flat[name_col] += [polygon] * len(coords)
+            for coord in coords:
+                if lat_first:
+                    lat = 0
+                    lon = 1
+                else:
+                    lat = 1
+                    lon = 0
+                flat['lat'] += [round(x[lat], round_val
+                    ) for x in coord]
+                flat['lon'] += [round(x[lon], round_val
+                    ) for x in coord]
+                flat[name_col] += [polygon] * len(coord)
+                flat['fid'] += [fid] * len(coord)
+                fid += 1
         return flat
         
-    def save_csv(self, flat,
-        fname='shifted_boundaries.csv'):
-        df = pd.DataFrame.from_dict(flat)
+    def save_csv(self, df,
+        fname='country_boundaries._shifted.csv'):
         df.to_csv(
             f'{self.pwd}/{fname}',
             index = False)
@@ -107,5 +113,6 @@ if __name__ == "__main__":
     SB = ShiftBoundaries()
     polygons_shifted = SB.run(polygons)
     flat = SB.flatten(polygons_shifted)
+    print(flat)
     #SB.save_csv(flat)
     #SB.save_gpx(polygons_shifted)
