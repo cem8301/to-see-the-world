@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import configparser
+from time import time
 
 import pandas as pd
 from pathlib import Path
 import requests
+from scipy.spatial import KDTree
 
 from supporting_data.country_boundaries_shifted import ShiftBoundaries
 
@@ -26,28 +28,123 @@ class Datasets():
         
     def run_country_boundaries(self):
         flat = {'lat': [], 'lon': [], 'country_code': []}
-        island_cc = ['AG', 'AQ', 'AU', 'BB', 'BH', 'BS',
-            'CU', 'CV', 'CY', 'DM', 'DO', 'FJ', 'FM', 'GB',
-            'GD', 'HT', 'IE', 'IS', 'JM', 'JP', 'KI', 'KM', 'KN',
-             'LC', 'LK', 'MG', 'MH', 'MT', 'MU', 'MV', 'NR',
-             'NZ', 'PG', 'PH', 'PW', 'SB', 'SC', 'SG', 'ST',
-             'TL', 'TO', 'TT', 'TV', 'TW', 'VC', 'VU', 'WS']
-        large_cc = ['DK', 'ID']#['RU', 'DK', 'CA', 'US']
+        country_polygons = {}
+        continent_groups = {}
         for cc in self.country_code_converter:
-            country_polygons = \
+            cb, continents = \
                 self.get_country_boundaries(cc)
-            flat_cc  = self.shift_country_boundaries(
-                country_polygons, offset=-10.0)
-            if cc in island_cc:
-                slice = 50
-            elif  cc in large_cc:
-                slice = 5
+            country_polygons.update(cb)
+            for continent in continents.split(','):
+                continent_groups.setdefault(
+                    continent, []).append(cc)
+        
+        flat_dict = {'lat': [], 'lon': [],
+            'country_code': [], 'border_count': []}
+        for continent in continent_groups:
+            print(continent)
+            ccs = continent_groups[continent]
+            country_polygons_sub = {
+                cc: country_polygons[cc] for cc in ccs
+                if cc in country_polygons}
+            flat_dict = self.calculate_flat_dict(
+                country_polygons,
+                country_polygons_sub, flat_dict)
+            
+        df = pd.DataFrame.from_dict(flat_dict)
+        h = df.get(df.border_count == 1).iloc[::50]
+        g = df.get(df.border_count > 1)
+        df = pd.concat([h, g], ignore_index = True)
+        self.save_shifted_boundaries(
+            df[['lat', 'lon', 'country_code']])
+   
+    def calculate_flat_dict(self,
+        country_polygons,
+        country_polygons_sub, flat_dict):
+        shift_df, noshift_df = self.calculate_shift_df(
+            country_polygons_sub)
+        agg_shift_df = shift_df.groupby('fid').agg(
+            {'coords': list,
+            'country_code': 'max',
+            'border_count': list}).reset_index()
+        for k in flat_dict:
+            flat_dict[k].extend(
+                list(noshift_df[k].values))
+        for idx, row in agg_shift_df.iterrows():
+             to_shift = {row.country_code: [row.coords]}
+             polygons_shifted = self.SB.run(
+                 to_shift, offset = -100.0)
+             flat_shift = self.SB.flatten(
+                 polygons_shifted, round_val=9)
+             flat_shift['border_count'] = \
+                 self.map_border_count(row, flat_shift,
+                     country_polygons_sub)
+             for k in flat_dict:
+                 flat_dict[k].extend(flat_shift[k])
+        return flat_dict
+
+    def calculate_shift_df(self, country_polygons):
+        flat_og = self.SB.flatten(
+            country_polygons,
+            lat_first=False, round_val=9)
+        df = pd.DataFrame.from_dict(flat_og)
+        df['coords'] = list(zip(df.lat, df.lon))
+        df = df.drop_duplicates(
+            subset=['coords', 'country_code'])
+        vc = df.coords.value_counts()
+        df['border_count'] = df.coords.map(vc)
+        df_mean = df.groupby(['country_code', 'fid'],
+            as_index=False)['border_count'].mean()
+        shift_df = df.get(df.fid.isin(list(
+            df_mean.get(df_mean.border_count > 1
+            )['fid'].values)))
+        noshift_df = df.get(df.fid.isin(list(
+            df_mean.get(df_mean.border_count == 1
+            )['fid'].values)))
+        return shift_df, noshift_df
+         
+    def map_border_count(self, row, flat_shift,
+        country_polygons_sub):
+        data_other_c = [x for k,v in 
+            country_polygons_sub.items() if k != 
+            row.country_code for x in v]
+        data_other_c = [(y,x) for nested_list in \
+            data_other_c for (x,y) in nested_list]
+        data = list(zip(
+            flat_shift['lat'], flat_shift['lon']))
+        a = row.border_count
+        b = a[1::] + [a[0]]
+        diff = [x - y for x, y in zip(a, b)]
+        res = [idx for idx, val in enumerate(diff
+            ) if abs(val) == 1]
+        # Remove two points right next to each other
+        res = [r for r in res if r+1 not in res] 
+        border_count = []
+        points = [0]
+        for r in res:
+            point =  row.coords[r]
+            _, ii = self.get_closest_point(data, point)
+            points.append(ii)
+        points.append(len(flat_shift['lat']))
+        points.sort()
+        for idx in range(0, len(points) - 1):
+            country_boundary_segment_center = int(points[idx
+                ] + (points[idx + 1] - points[idx])/2)
+            dd, ii = self.get_closest_point(data_other_c,
+                data[country_boundary_segment_center])
+            if dd > 0.1:
+                ocean = 1 # true
             else:
-                slice = 1
-            for key in flat:
-                flat[key] += flat_cc[key][::slice]
-        self.save_shifted_boundaries(flat)
-       
+                ocean = 2
+            #print(row.country_code, ocean, data[country_boundary_segment_center], dd, ii)
+            border_count.extend(
+                (points[idx + 1] - points[idx]) * [ocean])
+        return border_count
+     
+    def get_closest_point(self, data, point):
+        tree = KDTree(data, leafsize=30)
+        dd, ii = tree.query(point, k=1, workers=-1)
+        return dd, ii
+     
     def run_country_data(self):
         if Path(f'{self.pwd}/'
             f'{self.fname_shifted_boundaries}'
@@ -182,13 +279,14 @@ class Datasets():
         return centroids
     
     def get_country_boundaries(self, cc):
+        print(f'Querying for {cc}')
         val = self.country_code_converter[cc]
         url = ("https://services.arcgis.com"
             "/P3ePLMYs2RVChkJx/arcgis/rest"
             "/services/World_Countries/"
             "FeatureServer/0/query?where="
             f"ISO_CC%20%3D%20'{val}'&"
-            "outFields=ISO_CC,COUNTRY"
+            "outFields=COUNTRY,CONTINENT"
             ",LAND_RANK&outSR=4326&f=json")
         for retry in range(0,4):
             j = requests.get(url, timeout = 60)
@@ -200,20 +298,17 @@ class Datasets():
                     f'({retry}/5). '
                     f'Status code: {j.status_code}')
         country_polygons = {}
+        continents = []
         for feature in j['features']:
             if feature['attributes']['LAND_RANK'] <= 2:
                 continue
-            #cc = feature['attributes']['ISO_CC']
             coords = feature['geometry']['rings']
             country_polygons.setdefault(cc, []
                 ).extend(coords)
-        return country_polygons
-        
-    def shift_country_boundaries(self,
-        country_polygons, offset=-2.0):
-        polygons_shifted = self.SB.run(
-            country_polygons, offset=offset)
-        return self.SB.flatten(polygons_shifted)
+            continents.append(feature['attributes'
+                ]['CONTINENT'])
+        continent = ','.join(list(set(continents)))
+        return country_polygons, continent
         
     def save_shifted_boundaries(self, flat):
         print(
@@ -258,4 +353,4 @@ if __name__ == "__main__":
     D = Datasets()
     D.run_country_boundaries()
     #D.run_country_data()
-    #D.test_country_boundaries_shifted_file(['VN','CN'])
+    #D.test_country_boundaries_shifted_file(['VN','KH'])

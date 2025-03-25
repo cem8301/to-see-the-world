@@ -10,10 +10,10 @@ from coordinates_to_countries import CoordinatesToCountries
 from to_see_the_world import CountryData, Utils, Summary
 
 pd.set_option('display.max_rows', None)
-pd.set_option('display.max_columns', None)
-pd.set_option('display.width', 2000)
-pd.set_option('display.float_format', '{:20,.20f}'.format)
-pd.set_option('display.max_colwidth', None)
+#pd.set_option('display.max_columns', None)
+#pd.set_option('display.width', 2000)
+#pd.set_option('display.float_format', '{:20,.20f}'.format)
+#pd.set_option('display.max_colwidth', None)
 
 
 class TestGetGeo():
@@ -55,7 +55,8 @@ class TestGetGeo():
             1042546544: 'MK,AL',
             1054888756: 'AL,GR',
             1090980729: 'JO,PS',
-            1100451555: 'IL,PS',
+            1090981171: 'IL,PS',
+            #1100451555: 'PS,IL',
             1143621514: 'EG,SD',
             1154679820: 'SD,ET',
             1277417244: 'ET,KE',
@@ -150,7 +151,7 @@ class TestGetGeo():
             df = df.get(df.id.isin(a_ids))
             
         start = time()
-        df = self.get_geo(df, 20)
+        df = self.get_geo(df, 5)
         end = time()
         
         df.coords =df.coords_simple
@@ -185,7 +186,7 @@ class TestGetGeo():
                     ccs = list(set(ccs))
                 D.test_country_boundaries_shifted_file(
                     ccs)
-                fname=f'{a_id}_test_get_geo.gpx'
+                fname = f'{a_id}_test_get_geo.gpx'
                 self.Sm.save_gpx(
                      df_aid, elevations=False,
                      fname=fname)
@@ -197,6 +198,21 @@ class TestGetGeo():
                     point = points[idx]
                     self.get_closeby_boundaries(c, point)
 
+    def test(self):
+        delta = 0.00001
+        track = []
+        self.df_cbs = self.df_cbs.get(self.df_cbs.country_code == 'JP')
+        print(len(self.df_cbs))
+        #self.df_cbs = self.df_cbs.head(100000)
+        self.df_cbs['coords'] = \
+            list(zip(self.df_cbs.lat, self.df_cbs.lon))
+        df = self.df_cbs[['coords', 'country_code']]
+            
+        df['data_count'] = df.coords.map(df.coords.value_counts())
+        print(len(df.get(df.data_count > 1).data_count.values))
+        ans = df.groupby('country_code', as_index=False)['data_count'].mean()
+        print(ans.get(ans.data_count==1))
+        
     def get_closeby_boundaries(self, c, point):
         delta = 0.00001
         data = self.df_cbs.get(
@@ -212,7 +228,7 @@ class TestGetGeo():
                 f'lat: {row.lat}, lon: {row.lon}, dist: {r}')
             track[row.country_code] = r
         print('Closest Country: '
-            f'{min(track, key=track.get)}')
+            f'{min(track, key=track.get)}, point: {point}')
         
     def get_missed(self, df):
         missed = {}
@@ -398,5 +414,6 @@ if __name__ == "__main__":
 #        c=[46.690248, 15.643147],
 #        point=[46.69027, 15.64220])
     TGG.run(
-        a_ids=[969217846], output_geo=True
+        a_ids=[11525331563], output_geo=True
         )
+    #TGG.test()
