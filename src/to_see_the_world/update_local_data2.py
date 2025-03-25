@@ -30,15 +30,16 @@ class Datasets():
         flat = {'lat': [], 'lon': [], 'country_code': []}
         country_polygons = {}
         continent_groups = {}
-        for cc in ['DE','AT']:#self.country_code_converter:
-            cb, continent = \
+        for cc in self.country_code_converter:
+            cb, continents = \
                 self.get_country_boundaries(cc)
             country_polygons.update(cb)
-            continent_groups.setdefault(
-                continent, []).append(cc)
+            for continent in continents.split(','):
+                continent_groups.setdefault(
+                    continent, []).append(cc)
         
-        flat_dict = {'lat': [], 'lon': [], 'country_code': [],
-            'border_count': []}
+        flat_dict = {'lat': [], 'lon': [],
+            'country_code': [], 'border_count': []}
         for continent in continent_groups:
             print(continent)
             ccs = continent_groups[continent]
@@ -71,12 +72,12 @@ class Datasets():
         for idx, row in agg_shift_df.iterrows():
              to_shift = {row.country_code: [row.coords]}
              polygons_shifted = self.SB.run(
-                 to_shift, offset = -10.0)
+                 to_shift, offset = -100.0)
              flat_shift = self.SB.flatten(
                  polygons_shifted, round_val=9)
              flat_shift['border_count'] = \
                  self.map_border_count(row, flat_shift,
-                     country_polygons)
+                     country_polygons_sub)
              for k in flat_dict:
                  flat_dict[k].extend(flat_shift[k])
         return flat_dict
@@ -102,39 +103,41 @@ class Datasets():
         return shift_df, noshift_df
          
     def map_border_count(self, row, flat_shift,
-        country_polygons):
+        country_polygons_sub):
+        data_other_c = [x for k,v in 
+            country_polygons_sub.items() if k != 
+            row.country_code for x in v]
+        data_other_c = [(y,x) for nested_list in \
+            data_other_c for (x,y) in nested_list]
+        data = list(zip(
+            flat_shift['lat'], flat_shift['lon']))
         a = row.border_count
         b = a[1::] + [a[0]]
         diff = [x - y for x, y in zip(a, b)]
         res = [idx for idx, val in enumerate(diff
-            ) if val != 0]
+            ) if abs(val) == 1]
+        # Remove two points right next to each other
+        res = [r for r in res if r+1 not in res] 
         border_count = []
         points = [0]
         for r in res:
             point =  row.coords[r]
-            data = list(zip(
-                flat_shift['lat'], flat_shift['lon']))
             _, ii = self.get_closest_point(data, point)
             points.append(ii)
         points.append(len(flat_shift['lat']))
         points.sort()
-        data_other_c = [x for k,v in country_polygons.items() if k != row.country_code for x in v[0]]
-        dd, ii = self.get_closest_point(data_other_c,
-            row.coords[0])
-        print(row.country_code, dd, data_other_c[ii], row.coords[0])
-        if dd > 0.1:
-            track_point = 1
-        else:
-            track_point = 2
         for idx in range(0, len(points) - 1):
-            if track_point == 1:
-                val = 1
-                track_point = 2
+            country_boundary_segment_center = int(points[idx
+                ] + (points[idx + 1] - points[idx])/2)
+            dd, ii = self.get_closest_point(data_other_c,
+                data[country_boundary_segment_center])
+            if dd > 0.1:
+                ocean = 1 # true
             else:
-                val = 2
-                track_point = 1
+                ocean = 2
+            #print(row.country_code, ocean, data[country_boundary_segment_center], dd, ii)
             border_count.extend(
-                (points[idx + 1] - points[idx]) * [val])
+                (points[idx + 1] - points[idx]) * [ocean])
         return border_count
      
     def get_closest_point(self, data, point):
