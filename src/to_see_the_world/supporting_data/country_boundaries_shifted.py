@@ -47,13 +47,6 @@ class ShiftBoundaries:
                 ret)[0]  
         return coords
 
-    def get_depth(self, lst):
-        d = 0
-        for item in lst:
-            if isinstance(item, list):
-                d = max(self.get_depth(item), d)
-        return d + 1
-        
     def flatten(self,
         polygons, name_col='country_code',
         lat_first=True, round_val=9):
@@ -84,6 +77,8 @@ class ShiftBoundaries:
             index = False)
             
     def save_gpx(self, polygons):
+        Path(f'{self.pwd}/output').mkdir(
+            parents=True, exist_ok=True)
         for polygon in polygons:
             coords = polygons[polygon]
             print(f'Creating gpx file for {polygon}')
