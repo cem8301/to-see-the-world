@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 from pathlib import Path
 
 import gpxpy.gpx

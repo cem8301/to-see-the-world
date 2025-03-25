@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 from ast import literal_eval
 import configparser
 from datetime import datetime
@@ -1131,7 +1131,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=875bb717d4645390eb475c7460f51ac25a99b2d3&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=c401c529bb648307b16c93e99d3a6f57b5eb7196&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
