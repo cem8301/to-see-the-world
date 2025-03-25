@@ -16,7 +16,7 @@ import pandas as pd
 import polyline
 from pretty_html_table import build_table
 import requests
-from stravalib import Client
+from stravalib import Client, exc
 from thefuzz import process, fuzz
 from wordcloud import WordCloud, STOPWORDS
 import xyzservices.providers as xyz
@@ -346,11 +346,16 @@ class StravaData:
             self.headers = self.get_headers(
                 self.code)
             print('Authorization code was '
-                      'succsessful.')
-        except:
-            print('Authorization code '
-                      'incorrect. Fix or proceed with ' 
-                      'local data.')
+                  'succsessful.')
+        except configparser.NoSectionError:
+            print('Please create a secrets.ini file as '
+                  'described in the "Add Strava '
+                  'authentification strings" section of the '
+                  'README. Terminating code.')
+            exit()
+        except exc.Fault:
+            print('Authorization code incorrect. Fix or '
+                  'proceed with local data.')
     
     def df_by_a_id(self, df, a_id):
         return df[df['athlete/id'] == a_id]
@@ -1131,7 +1136,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=c401c529bb648307b16c93e99d3a6f57b5eb7196&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=d15469ab9c6cc353d7f23d8a4eaf6bee41b23fdb&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
