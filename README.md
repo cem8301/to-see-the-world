@@ -35,7 +35,7 @@ Another way to view data is by clicking on the blue icon (one for each country v
 
 ![Alt text](docs/map_screenshots/map5.jpg)
 
-Here is a zoomed in version of my current tour. There is a feature on the bottom right to play a time lapse of your rides. A dot will jump between the start point of each of your rides to show progression over time. This feature works well for tours with daily rides or for people who ride from new places all of the time. If rides start from a single location the dot will blink there. Here is a time lapse of my tour from May 2023 to July 2024. It helps me to put distance into perspective. Long distances are more or less just covered in series of rides and they allow you to see so much!
+Here is a zoomed in version of my current tour. There is a feature on the bottom right to play a time lapse of your rides. A dot will jump between the start point of each of your rides to show progression over time. This feature works well for tours with daily rides or for people who ride from new places all of the time. If rides start from a single location the dot will blink there. Here is a time lapse of my tour from May 2023 to February 2025. It helps me to put distance into perspective. Long distances are more or less just covered in series of rides and they allow you to see so much!
 ![Alt Text](docs/map_screenshots/map_gif.gif)
 
 ### Summary Output
