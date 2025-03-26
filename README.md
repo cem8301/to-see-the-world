@@ -39,10 +39,10 @@ Here is a zoomed in version of my current tour. There is a feature on the bottom
 
 ### Summary Output
 The user can also create a textual summary of a given timeframe. This timeframe can be defined by a start and/or end date or simply by the activity id number. An example of the textual summary can be seen below:
-![Alt text](docs/map_screenshots/china_map.jpg)
+![Alt text](docs/map_screenshots/china_summary.jpg)
 
 Another usecase came up- where other cyclists were asking for specific route data. The easiest way to share this is with .gpx files. The user can choose to output a recorded .gpx file (with post calculated elevation data) of any range of data. An example of a .gpx file opened in OsmAnd is shown below:
-![Alt text](docs/map_screenshots/china_summary.jpg)
+![Alt text](docs/map_screenshots/china_map.jpg)
 
 ## Setup
 **tldr; 30-40min for initial setup**
