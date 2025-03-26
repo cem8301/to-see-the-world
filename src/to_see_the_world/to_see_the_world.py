@@ -1136,7 +1136,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=d15469ab9c6cc353d7f23d8a4eaf6bee41b23fdb&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=0f9b8f1ef2c1860ab7d50cd69d319a0f7fadecd3&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
