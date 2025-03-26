@@ -142,22 +142,21 @@ The html file is your map! Click on it and open in your web browser. That is it!
 The pickle file stores the useful information gathered via the Strava API. This makes future runs much quicker. The code will first check for local pickle files, look for the date of the last entry, then (if authenticated) check Strava for any new data. This feature allows you to create a new map with out grabbing a new code. This also allows for overlaying other athletes data on one map (remember that only one athlete can be authenticated at a time). The map output will overlay any athlete pickle files to display on a single map. The html file will be named according with the athletes run.
 
 ## Ideas and Fixes Catalog!!
-- [ ] Clean up shifted countries data. There is at least one NAN country cuasing Jaocbs data to fail. Alao need to include island countries and island sections of countries. Currently I have visited American Samoa because Hawaii is not in my USA coordinates. 
-- [ ] Clean up supporting_data inputs. Make dara up-to-date and easily updateable and clear on the datasource
+- [ ] Clean up get_geo and make the code its own repo
+- [ ] Clean up supporting_data inputs. Data should be easily updateable and clear on the datasource
+- [ ] Increase timelapse tracker top speed
 - [ ] Have timelapse tracker skip inactive days, make sure the tracker is always visible, and make all riders tracker a different color
-- [ ] Option to hide country pointers(all/other people)
+- [ ] Put country summary markers into feature groups and only show them when the rider is highlighted
+- [ ] Option to hide country pointers. They do not always need to be displayed
 - [ ] Multiple time lapse trackers show even when other riders are hidden, make trackers hide
 - [ ] Distance vs time graph maybe as another html popup
-- [ ] Use the full set of coordinates to specify mileage in each admin area? Not sure if that will work
-- [ ] Looks like it is possible to highlight regions you have visited? Maybe too much, but maybe neat. Leaving the [link](https://medium.com/vahaninc/geospatial-data-analysis-using-python-libraries-4c0367e1e824) to return to
-- [ ] Put country summary markers into feature groups and only show them when the rider is highlighted. I think that would look neater
-- [ ] Add map function to only display bike certain bikes! or activity types
-- [ ] Option to add in other gpx files from sources other than Strava. I have several tours that were not recorded.
+- [ ] Add map function to only display bike certain bikes or activity types
+- [ ] Option to add in other gpx files from sources other than Strava
 - [ ] Add a link to create a google maps route layer
-- [ ] Add elevation profiles to country summaries, vs regions
-- [ ] Update Strava authorization to remember secrets, so the user doesnt need to grant access every time the user wants more data
-- [ ] Create cron (see how via phone? free place online?) to run map updates once a week
-- [ ] Create summaries print out function. ie, distance, elevation, countries/regions, a gif of movement, during the time period
+- [ ] Add elevation profiles to country summaries
+- [ ] Update Strava authorization to remember secrets, so the user doesnt need to grant access every time
+- [ ] Create cron (via phone? free place online?) to run map updates once a week
+- [ ] Create summaries print out function. ie, distance, elevation, countries/regions and gif of map movement
 
 ## Resources
 - Look at the [supporting_data](https://github.com/cem8301/to-see-the-world/blob/main/src%2Fto_see_the_world%2Fsupporting_data%2FREADME.md) folder to understand country boundaries and admin areas.
