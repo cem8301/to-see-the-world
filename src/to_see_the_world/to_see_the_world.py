@@ -987,7 +987,8 @@ class Map:
     def create_lines(self, df, a_ids):
         df['emoji'] = df['type'].apply(self.get_emoji) +\
             df['country_code'].apply(
-            self.get_country_flag)
+            self.get_country_flag) + ' (' +\
+            df['admin_name'] + ')'
         df['link'] = df['id'].apply(self.get_link)
         df['distance'] = round(df['distance'] * \
             self.dist_conv, 1)
@@ -1076,8 +1077,8 @@ class Map:
         for _, row in df.iterrows():
             features.append(self.get_feature(row))
         gj = {'type': 'FeatureCollection',
-                 'name': 'strava',
-                 'features': features}
+              'name': 'strava',
+              'features': features}
         sf = lambda x:{
           'color': x['properties']['stroke'],
           'opacity' : x['properties']['stroke-opacity'],
@@ -1146,7 +1147,7 @@ if __name__ == "__main__":
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2024-07-15',
+         s_time_str='2025-03-15',
          #e_time_str='2018-09-16',
          #activity=11725858841,
          #gpx=True,
