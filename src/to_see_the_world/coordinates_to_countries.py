@@ -38,7 +38,8 @@ class CoordinatesToCountries:
         _, ii = tree.query(coords, k=1, workers=-1)
         geo_data = {
             'idx': [], 'country_code': [],
-            'closest_boundary_coord': []}
+            'closest_boundary_coord': [],
+            'og_coord': []}
         for idx, i in enumerate(ii):
             geo_data['idx'].append(idx)
             cc = self.df_cb_shifted.iloc[[
@@ -46,6 +47,7 @@ class CoordinatesToCountries:
             geo_data['country_code'].append(cc)
             geo_data['closest_boundary_coord'
                 ].append(data[i])
+            geo_data['og_coord'].append(coords[idx])
         return pd.DataFrame(geo_data)
         
     def get_closest_admin(self, df_geo_data):
@@ -53,6 +55,7 @@ class CoordinatesToCountries:
            'idx': [],
             'country_code': [],
             'closest_boundary_coord': [],
+            'og_coord': [],
             'admin_name': [],
             'city': []}
         for cc in set(df_geo_data.country_code):
@@ -67,11 +70,16 @@ class CoordinatesToCountries:
                 'closest_boundary_coord'])
             geo_data['closest_boundary_coord'
                 ] += cb_coord
+            og_coord = list(sub_df_gd[
+                'og_coord'])
+            geo_data['og_coord'
+                ] += og_coord
+
             data = list(zip(
                 list(sub_df_c['lat']),
                 list(sub_df_c['lon'])))
             tree = KDTree(data, leafsize=30)
-            _, ii = tree.query(cb_coord, k=1,
+            _, ii = tree.query(og_coord, k=1,
                 workers=-1)
             for i in ii:
                 geo_data['admin_name'].append(
@@ -84,6 +92,7 @@ class CoordinatesToCountries:
 
 if __name__ == "__main__":
     coords = [
+            (36.17471263921515, -94.23251549603685),# AR, USA
             (22.9219, 105.86972), #vietnam
             (22.48113, 103.97163), #Lao Cai, Vietnam
             (21.68350, 102.10566), #laos
