@@ -39,7 +39,8 @@ class Datasets():
                     continent, []).append(cc)
         
         flat_dict = {'lat': [], 'lon': [],
-            'country_code': [], 'border_count': []}
+            'country_code': [], 'border_count': [],
+            'fid': []}
         for continent in continent_groups:
             print(continent)
             ccs = continent_groups[continent]
@@ -55,7 +56,7 @@ class Datasets():
         g = df.get(df.border_count > 1)
         df = pd.concat([h, g], ignore_index = True)
         self.save_shifted_boundaries(
-            df[['lat', 'lon', 'country_code']])
+            df[['lat', 'lon', 'country_code', 'fid']])
    
     def calculate_flat_dict(self,
         country_polygons,
@@ -135,7 +136,6 @@ class Datasets():
                 ocean = 1 # true
             else:
                 ocean = 2
-            #print(row.country_code, ocean, data[country_boundary_segment_center], dd, ii)
             border_count.extend(
                 (points[idx + 1] - points[idx]) * [ocean])
         return border_count
