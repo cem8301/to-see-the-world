@@ -25,12 +25,14 @@ class ShiftBoundaries:
                 # Vatican City (VA). Their
                 #borders are completely within Italy (IT)
                 offset = offset * 100
-            coords = polygons[polygon]
-            solution = []
-            for coord in coords:
-                solution.append(self.shift_polygons(
-                    coord, offset, min_len))
-            pshift[polygon] = solution
+            for fid in polygons[polygon]:
+                coords = polygons[polygon][fid]
+                solution = []
+                for coord in coords:
+                    solution.append(self.shift_polygons(
+                        coord, offset, min_len))
+                pshift.setdefault(polygon, {}).update(
+                    {fid: solution})
         return pshift
 
     def shift_polygons(
@@ -51,23 +53,24 @@ class ShiftBoundaries:
         polygons, name_col='country_code',
         lat_first=True, round_val=9):
         flat = {'lat': [], 'lon': [], name_col: [], 'fid': []}
-        fid = 0
         for polygon in polygons:
-            coords = polygons[polygon]
-            for coord in coords:
-                if lat_first:
-                    lat = 0
-                    lon = 1
-                else:
-                    lat = 1
-                    lon = 0
-                flat['lat'] += [round(x[lat], round_val
-                    ) for x in coord]
-                flat['lon'] += [round(x[lon], round_val
-                    ) for x in coord]
-                flat[name_col] += [polygon] * len(coord)
-                flat['fid'] += [fid] * len(coord)
-                fid += 1
+            for fid in polygons[polygon]:
+                coords = polygons[polygon][fid]
+                fid_add = 0
+                for coord in coords:
+                    if lat_first:
+                        lat = 0
+                        lon = 1
+                    else:
+                        lat = 1
+                        lon = 0
+                    flat['lat'] += [round(x[lat], round_val
+                        ) for x in coord]
+                    flat['lon'] += [round(x[lon], round_val
+                        ) for x in coord]
+                    flat[name_col] += [polygon] * len(coord)
+                    flat['fid'] += [fid + fid_add] * len(coord)
+                    fid_add += 0.1
         return flat
         
     def save_csv(self, df,
@@ -101,10 +104,12 @@ class ShiftBoundaries:
 
 if __name__ == "__main__":
     polygons = {
-        'square': [[[1, 1], [1, 2], [2,2], [2,1], [1,1]]],
-        'triangle': [[[0,0], [1,5], [10, -6], [0,0]]],
-        'random': [[[0,0], [4,8], [6,5], [0,0]],
-            [[1,1], [3,7], [5,4], [1,1]]]}
+        'square': {1:[[[1, 1], [1, 2], [2,2], [2,1], [1,1]]]},
+        'triangle': {2:[[[0,0], [1,5], [10, -6], [0,0]]]},
+        'random': {3:[[[0,0], [4,8], [6,5], [0,0]]],
+            4:[[[1,1], [3,7], [5,4], [1,1]]],
+            5:[[[1, 1], [1, 2], [2,2], [2,1]],
+              [[0,0], [1,5], [10, -6], [0,0]]]}}
     SB = ShiftBoundaries()
     polygons_shifted = SB.run(polygons)
     flat = SB.flatten(polygons_shifted)
