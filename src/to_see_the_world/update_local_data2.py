@@ -26,30 +26,21 @@ class Datasets():
             'fname_country_boundaries_shifted')
         self.SB = ShiftBoundaries()
         
-    def run_country_boundaries(self):
+    def run_country_boundaries(self, shift=False):
         flat = {'lat': [], 'lon': [], 'country_code': []}
         country_polygons = {}
-        continent_groups = {}
         for cc in self.country_code_converter:
-            cb, continents = \
-                self.get_country_boundaries(cc)
-            country_polygons.update(cb)
-            for continent in continents.split(','):
-                continent_groups.setdefault(
-                    continent, []).append(cc)
-        
+            country_polygons = self.get_country_boundaries(
+                cc, country_polygons)
+
         flat_dict = {'lat': [], 'lon': [],
             'country_code': [], 'border_count': [],
             'fid': []}
-        for continent in continent_groups:
+        for continent in country_polygons:
             print(continent)
-            ccs = continent_groups[continent]
-            country_polygons_sub = {
-                cc: country_polygons[cc] for cc in ccs
-                if cc in country_polygons}
+            country_polygons_sub = country_polygons[continent]
             flat_dict = self.calculate_flat_dict(
-                country_polygons,
-                country_polygons_sub, flat_dict)
+                country_polygons_sub, flat_dict, shift)
             
         df = pd.DataFrame.from_dict(flat_dict)
         h = df.get(df.border_count == 1).iloc[::50]
@@ -58,34 +49,38 @@ class Datasets():
         self.save_shifted_boundaries(
             df[['lat', 'lon', 'country_code', 'fid']])
    
-    def calculate_flat_dict(self,
-        country_polygons,
-        country_polygons_sub, flat_dict):
-        shift_df, noshift_df = self.calculate_shift_df(
-            country_polygons_sub)
-        agg_shift_df = shift_df.groupby('fid').agg(
-            {'coords': list,
-            'country_code': 'max',
-            'border_count': list}).reset_index()
-        for k in flat_dict:
-            flat_dict[k].extend(
-                list(noshift_df[k].values))
-        for idx, row in agg_shift_df.iterrows():
-             to_shift = {row.country_code: [row.coords]}
-             polygons_shifted = self.SB.run(
-                 to_shift, offset = -100.0)
-             flat_shift = self.SB.flatten(
-                 polygons_shifted, round_val=9)
-             flat_shift['border_count'] = \
-                 self.map_border_count(row, flat_shift,
-                     country_polygons_sub)
-             for k in flat_dict:
-                 flat_dict[k].extend(flat_shift[k])
+    def calculate_flat_dict(self, country_polygons_sub,
+        flat_dict, shift):
+        df = self.calculate_border_count(country_polygons_sub)
+        if shift:
+            noshift_df = df.get(df.bc_fid_avg == 1.0)
+            shift_df = df.get(df.bc_fid_avg > 1.0) 
+            for k in flat_dict:
+                flat_dict[k].extend(
+                    list(noshift_df[k].values))  
+            agg_shift_df = shift_df.groupby('fid').agg(
+                {'coords': list,
+                'country_code': 'max',
+                'border_count': list}).reset_index()
+            for idx, row in agg_shift_df.iterrows():
+                 to_shift = {row.country_code: {row.fid: [
+                    row.coords]}}
+                 polygons_shifted = self.SB.run(
+                     to_shift, offset = -100.0)
+                 flat_shift = self.SB.flatten(
+                     polygons_shifted, round_val=9)
+                 flat_shift['border_count'] = \
+                     map_border_count(row, flat_shift,
+                         country_polygons_sub)
+                 for k in flat_dict:
+                     flat_dict[k].extend(flat_shift[k])
+        else:
+            for k in flat_dict:
+                flat_dict[k].extend(list(df[k].values))  
         return flat_dict
 
-    def calculate_shift_df(self, country_polygons):
-        flat_og = self.SB.flatten(
-            country_polygons,
+    def calculate_border_count(self, country_polygons):
+        flat_og = self.SB.flatten(country_polygons,
             lat_first=False, round_val=9)
         df = pd.DataFrame.from_dict(flat_og)
         df['coords'] = list(zip(df.lat, df.lon))
@@ -93,23 +88,21 @@ class Datasets():
             subset=['coords', 'country_code'])
         vc = df.coords.value_counts()
         df['border_count'] = df.coords.map(vc)
-        df_mean = df.groupby(['country_code', 'fid'],
-            as_index=False)['border_count'].mean()
-        shift_df = df.get(df.fid.isin(list(
-            df_mean.get(df_mean.border_count > 1
-            )['fid'].values)))
-        noshift_df = df.get(df.fid.isin(list(
-            df_mean.get(df_mean.border_count == 1
-            )['fid'].values)))
-        return shift_df, noshift_df
+        df['bc_fid_avg'] = df.groupby(
+            ['country_code', 'fid'], as_index=False
+            )['border_count'].transform('mean') 
+        return df
          
     def map_border_count(self, row, flat_shift,
         country_polygons_sub):
-        data_other_c = [x for k,v in 
-            country_polygons_sub.items() if k != 
-            row.country_code for x in v]
-        data_other_c = [(y,x) for nested_list in \
-            data_other_c for (x,y) in nested_list]
+        data_other_c = []
+        for cc in country_polygons_sub:
+            if cc != row.country_code:
+                for fid in country_polygons_sub[cc]:
+                    nested_list = country_polygons_sub[cc][fid]
+                    for coords in nested_list:
+                        for (x,y) in coords:
+                            data_other_c.append((y,x))
         data = list(zip(
             flat_shift['lat'], flat_shift['lon']))
         a = row.border_count
@@ -278,7 +271,7 @@ class Datasets():
             centroids[cc] = self.get_centroid(coords)
         return centroids
     
-    def get_country_boundaries(self, cc):
+    def get_country_boundaries(self, cc, country_polygons={}):
         print(f'Querying for {cc}')
         val = self.country_code_converter[cc]
         url = ("https://services.arcgis.com"
@@ -287,7 +280,7 @@ class Datasets():
             "FeatureServer/0/query?where="
             f"ISO_CC%20%3D%20'{val}'&"
             "outFields=COUNTRY,CONTINENT"
-            ",LAND_RANK&outSR=4326&f=json")
+            ",LAND_RANK,FID&outSR=4326&f=json")
         for retry in range(0,4):
             j = requests.get(url, timeout = 60)
             if j.ok:
@@ -297,19 +290,18 @@ class Datasets():
                 print('Trying get_country_data again ' 
                     f'({retry}/5). '
                     f'Status code: {j.status_code}')
-        country_polygons = {}
-        continents = []
         for feature in j['features']:
             if feature['attributes']['LAND_RANK'] <= 2:
                 continue
+            fid = feature['attributes']['FID']
             coords = feature['geometry']['rings']
-            country_polygons.setdefault(cc, []
-                ).extend(coords)
-            continents.append(feature['attributes'
-                ]['CONTINENT'])
-        continent = ','.join(list(set(continents)))
-        return country_polygons, continent
-        
+            continent = feature['attributes']['CONTINENT']
+            country_polygons.setdefault(continent, {})
+            country_polygons[continent].setdefault(cc, {})
+            country_polygons[continent][cc].setdefault(
+                fid, []).extend(coords)
+        return country_polygons
+ 
     def save_shifted_boundaries(self, flat):
         print(
             f'Saving {self.fname_shifted_boundaries}')
@@ -351,6 +343,6 @@ class Datasets():
 
 if __name__ == "__main__":
     D = Datasets()
-    D.run_country_boundaries()
+    D.run_country_boundaries(shift=False)
     #D.run_country_data()
     #D.test_country_boundaries_shifted_file(['VN','KH'])
