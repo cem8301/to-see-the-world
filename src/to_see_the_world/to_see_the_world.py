@@ -164,8 +164,9 @@ class CountryData:
     def get_geo(self, df, slice=1):
         df_explode = df[['id', 'coords']].explode(
             'coords').dropna()
-        coords_slice = dict(list(df_explode.set_index('index'
-            ).to_dict()['tuples'].items())[::2])
+        coords_slice = {'id': list(df_explode.id.values
+            )[::slice], 'coords': list(df_explode['coords'
+            ].values)[::slice]}
         print('Finding coordinate meta data for '
             f'{len(coords_slice)} points')
         CTC = CoordinatesToCountries()
@@ -1136,7 +1137,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=e1277bd46cfe37a04720970f140c4895ed2a7969&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=130b14a146d9f2e2747c37de158d50b70cdbea76&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
