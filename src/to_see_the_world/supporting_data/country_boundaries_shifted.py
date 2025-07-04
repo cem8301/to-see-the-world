@@ -70,7 +70,7 @@ class ShiftBoundaries:
                         ) for x in coord]
                     flat[name_col] += [polygon] * len(coord)
                     flat['fid'] += [fid + fid_add] * len(coord)
-                    fid_add += 0.1
+                    fid_add += 0.0001
         return flat
         
     def save_csv(self, df,
@@ -83,23 +83,26 @@ class ShiftBoundaries:
         Path(f'{self.pwd}/output').mkdir(
             parents=True, exist_ok=True)
         for polygon in polygons:
-            coords = polygons[polygon]
-            print(f'Creating gpx file for {polygon}')
-            gpx = gpxpy.gpx.GPX()
-            gpx_track = gpxpy.gpx.GPXTrack()
-            gpx.tracks.append(gpx_track)
-            gpx_seg = gpxpy.gpx.GPXTrackSegment()
-            gpx_track.segments.append(gpx_seg)
-            for x in coords:
-                gpx_seg.points.append(
-                    gpxpy.gpx.GPXTrackPoint(
-                        latitude = x[0],
-                        longitude = x[1]))
-            xml = gpx.to_xml()
-            f = open(
-                f'{self.pwd}/output/{polygon}.gpx', 'w')
-            f.write(xml)
-            f.close()
+            for sub_polygon in polygons[polygon]:
+                coords = polygons[polygon][sub_polygon][0]
+                print('Creating gpx file for '
+                    f'{polygon}_{sub_polygon}')
+                gpx = gpxpy.gpx.GPX()
+                gpx_track = gpxpy.gpx.GPXTrack()
+                gpx.tracks.append(gpx_track)
+                gpx_seg = gpxpy.gpx.GPXTrackSegment()
+                gpx_track.segments.append(gpx_seg)
+                for x in coords:
+                    gpx_seg.points.append(
+                        gpxpy.gpx.GPXTrackPoint(
+                            latitude = x[0],
+                            longitude = x[1]))
+                xml = gpx.to_xml()
+                f = open(
+                    f'{self.pwd}/output/{polygon}_{sub_polygon}'
+                    '.gpx', 'w')
+                f.write(xml)
+                f.close()
 
 
 if __name__ == "__main__":
@@ -115,4 +118,4 @@ if __name__ == "__main__":
     flat = SB.flatten(polygons_shifted)
     print(flat)
     #SB.save_csv(flat)
-    #SB.save_gpx(polygons_shifted)
+    SB.save_gpx(polygons_shifted)

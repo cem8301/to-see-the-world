@@ -37,7 +37,6 @@ class Datasets():
             'country_code': [], 'border_count': [],
             'fid': []}
         for continent in country_polygons:
-            print(continent)
             country_polygons_sub = country_polygons[continent]
             flat_dict = self.calculate_flat_dict(
                 country_polygons_sub, flat_dict, shift)
@@ -291,8 +290,8 @@ class Datasets():
                     f'({retry}/5). '
                     f'Status code: {j.status_code}')
         for feature in j['features']:
-            if feature['attributes']['LAND_RANK'] <= 2:
-                continue
+            #if feature['attributes']['LAND_RANK'] <= 2:
+            #    continue
             fid = feature['attributes']['FID']
             coords = feature['geometry']['rings']
             continent = feature['attributes']['CONTINENT']
@@ -331,9 +330,14 @@ class Datasets():
                 na_filter = False)
             data = {}
             for cc in country_codes:
-                data[cc] = list(zip(
-                    df.get(df.country_code == cc).lat,
-                    df.get(df.country_code == cc).lon)) 
+                data.setdefault(cc, {})
+                for fid in set(df.get(df.country_code == cc
+                    ).fid.values):
+                    #print(fid)
+                    lat = df.get(df.fid == fid).lat
+                    lon = df.get(df.fid == fid).lon
+                    data[cc].setdefault(fid, []).append(
+                        list(zip(lat, lon))) 
             self.SB.save_gpx(data)
             coords = [-30.48457889491692,
                 27.61236683325842]
@@ -345,4 +349,4 @@ if __name__ == "__main__":
     D = Datasets()
     D.run_country_boundaries(shift=False)
     #D.run_country_data()
-    #D.test_country_boundaries_shifted_file(['VN','KH'])
+    #D.test_country_boundaries_shifted_file(['NZ'])

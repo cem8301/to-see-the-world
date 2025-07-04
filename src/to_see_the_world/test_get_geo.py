@@ -39,7 +39,7 @@ class TestGetGeo():
         self.ans = {
             969217846: 'CH,LI,AT',
             972228442: 'AT,DE',
-            975224137: 'DE,AT',
+            #975224137: 'DE,AT',
             975224174: 'DE,CZ',
             983225238: 'CZ,PL',
             992259989: 'PL,SK',
@@ -145,16 +145,15 @@ class TestGetGeo():
         
     def run(self, a_ids=[], output_geo= False):
         pickle = f'{self.pwd}/test_get_geo.pickle'
-        df  = pd. read_pickle(pickle)
+        df  = pd.read_pickle(pickle)
         df = df.get(df['coords'].str.len() != 0)
         if a_ids:
             df = df.get(df.id.isin(a_ids))
             
         start = time()
-        df = self.get_geo(df, 5)
+        df = self.get_geo(df, slice=5)
         end = time()
         
-        df.coords =df.coords_simple
         missed = self.get_missed(df)
         num_calc_bc = len(df.get(
             df.border_crossings > 1))
@@ -179,8 +178,9 @@ class TestGetGeo():
             for a_id in a_ids:
                 df_aid = df.get(df.id == a_id)
                 D = Datasets()
-                ccs = df_aid.country_code.values[0
-                    ].split(',')
+                ccs = df_aid.country_code.values
+                if len(ccs) > 0:
+                    ccs = ccs[0].split(',')
                 if a_id in self.ans:
                     ccs.extend(self.ans[a_id].split(','))
                     ccs = list(set(ccs))
@@ -190,20 +190,13 @@ class TestGetGeo():
                 self.Sm.save_gpx(
                      df_aid, elevations=False,
                      fname=fname)
-                print('Closest Country Boundary '
-                    'Coordinates:')
-                cbc = list(df_aid.closest_boundary_coord.values[0])
-                points = list(df_aid.coords.values[0])
-                for idx, c in enumerate(cbc):
-                    point = points[idx]
-                    self.get_closeby_boundaries(c, point)
 
     def test(self):
         delta = 0.00001
         track = []
-        self.df_cbs = self.df_cbs.get(self.df_cbs.country_code == 'JP')
+        self.df_cbs = self.df_cbs.get(
+            self.df_cbs.country_code == 'JP')
         print(len(self.df_cbs))
-        #self.df_cbs = self.df_cbs.head(100000)
         self.df_cbs['coords'] = \
             list(zip(self.df_cbs.lat, self.df_cbs.lon))
         df = self.df_cbs[['coords', 'country_code']]
@@ -232,15 +225,15 @@ class TestGetGeo():
         
     def get_missed(self, df):
         missed = {}
-        for a in self.ans:
-            if a in df.id.values:
-                if self.ans[a] != df.get(df.id == a
-                    ).country_code.values[0]:
-                    calc_value = df.get(df.id == a
-                        ).country_code.values[0]
-                    link = self.get_strava_activity_link(a)
+        for x in self.ans:
+            if x in df.id.values:
+                A = ','.join(sorted(self.ans[x].split(',')))
+                B = ','.join(sorted(df.get(df.id == x
+                        ).country_code.values[0].split(',')))
+                if A != B:
+                    link = self.get_strava_activity_link(x)
                     missed[link] = (
-                        f'A: {self.ans[a]}, B: {calc_value}')
+                        f'A: {A}, B: {B}')
         return missed
 
     def get_calc_bad(self, df):
@@ -258,155 +251,61 @@ class TestGetGeo():
     def get_border_crossings(self, df):
         return df.country_code.str.split(','
             ).apply(lambda x: len(x))
+
+    def check_border_crossings(self, df):
+        bc = {}
+        for i in sorted(list(set(df.id))):
+            dfa = df.get(df.id == i)
+            num_bc = len(dfa.groupby(
+                [dfa['country_code'].ne(
+                dfa['country_code'].shift()
+                ).cumsum(), 'country_code']
+                ).size())
+            bc[i] = num_bc
+        return bc
+
+    def country_code_to_country_name(self, cc):
+        ans = ''
+        cc_list = cc.split(',')
+        for c in cc_list:
+            if len(ans) > 0:
+                ans += ','
+            ans +=  list(self.CD.df_country_data.get(
+                self.CD.df_country_data.country_code \
+                == c)['country_name'])[0]
+        return ans 
     
     def get_geo(self, df, slice=1):
-            df['coords_simple'] = df['coords'].apply(
-                lambda x: x[::slice] + [x[-1]])
-            df_explode = df[['id', 'coords_simple']
-                ].explode('coords_simple').dropna()
-            coords_slice = list(
-                df_explode.coords_simple)
-            print('Finding coordinate meta data for '
-                f'{len(coords_slice)} points')
-            CTC = CoordinatesToCountries()
-            df_slice = CTC.run(coords_slice)
-            df_slice['id'] = list(df_explode.id)
-            df_slice = df_slice.groupby('id').agg(
-                {'country_code': 
-                     lambda x: ','.join(list(
-                     dict.fromkeys(x))),
-                 'admin_name': ','.join,
-                 'closest_boundary_coord':
-                     lambda x: x}
-                 ).reset_index()
-            df = pd.merge(
-                df, df_slice[['id', 'country_code',
-                'admin_name', 'closest_boundary_coord'
-                ]], on='id', how='right')
-            df.coords_simple = \
-                df.coords_simple.apply(tuple)
-            df.coords= \
-                df.coords.apply(tuple)
-            #df, dbg = edit_borders(df, debug=True)
-            df['border_crossings'] = \
-                self.get_border_crossings(df)
-            df['country_name'] = \
-                df.country_code.apply(lambda x:
-                self.CD.country_code_to_country_name(
-                x))
-            return df
-    
-    def edit_borders(self, df, debug=False):
-            df = df.sort_values(by='start_date_local')
-            if df.shape[0] <= 3:
-                return df
-            ids = list(df.id.values)
-            debug_data = {}
-            df['border_crossings'] = \
-                self.get_border_crossings(df)
-            bc_gt_1= list(df.get(
-                df.border_crossings > 1).id.values)
-            for idx, i in enumerate(ids):
-                if i not in bc_gt_1:
-                    continue
-                prev_id = ids[idx - 1]
-                cur_id = i
-                next_id = ids[idx + 1]
-                prev_cc = self.U.get_cc(df, prev_id)
-                cur_cc = self.U.get_cc(df, cur_id)
-                next_cc = self.U.get_cc(df, next_id)
-                bc = df.get(df.id == cur_id
-                    ).border_crossings.values[0]
-                prev_dist = self.U.get_distance(
-                    df, prev_id, cur_id)
-                next_dist = self.U.get_distance(
-                    df, cur_id, next_id)
-                if debug:
-                    debug_data[cur_id] = {
-                        'prev_cc': prev_cc,
-                        'cur_cc_og': cur_cc,
-                        'next_cc': next_cc,
-                        'bc': bc,
-                        'prev_id': prev_id,
-                        'cur_id': cur_id,
-                        'next_id': next_id,
-                        'prev_dist': prev_dist,
-                        'next_dist': next_dist}
-                if len(cur_cc) == 1:
-                # Skipping, odd data
-                    continue
-                if bc == 2 or bc == 3 and \
-                    len(cur_cc) == 2:
-                    if prev_cc == next_cc:
-                    # Check for in and out of one country
-                    # No border crossing.
-                    # Set current cur_cc to prev_cc
-                        df.loc[df.id == cur_id, 'country_code'
-                            ] = ','.join(prev_cc)
-                        if cur_id in debug_data:
-                            debug_data[cur_id].update(
-                                {'edit': 'A, no bc'})
-                    elif prev_cc[-1] == cur_cc[0] and \
-                        cur_cc[1] == next_cc[0]:
-                    # A border was crossed,
-                    # cur_cc is valid
-                        if debug_data:
-                            debug_data[cur_id].update(
-                                {'edit': 'B'})
-                        pass
-                    elif prev_cc[-1] in cur_cc and \
-                        prev_dist < 5 and next_dist > 5:
-                    # The prev point is a valid comparison,
-                    # but the next point is not. Data is
-                    # incomplete, but a border was
-                    # likely crossed, cur_cc is valid
-                        if debug_data:
-                            debug_data[cur_id].update(
-                                {'edit': 'B2'})
-                        pass
-                    elif prev_dist > 5 and next_dist < 5 \
-                        and next_cc[0] in cur_cc:
-                    # The next point is a valid comparison,
-                    # but the prev point is not. Data is
-                    # incomplete, but a border was
-                    # likely crossed, cur_cc is valid
-                        if debug_data:
-                            debug_data[cur_id].update(
-                                {'edit': 'B3'})
-                        pass
-                    else:
-                    # Inconclusive,
-                    # set cur_cc to prev_cc
-                        df.loc[df.id == cur_id, 'country_code'
-                            ] = ','.join(prev_cc)
-                        if debug_data:
-                            debug_data[cur_id].update(
-                                {'edit': 'C, no bc'})
-                elif bc == 3 and len(cur_cc) == 3:
-                    if prev_cc[-1] == cur_cc[0]:
-                    # A country was crossed.
-                    # cur_cc is valid
-                        if debug_data:
-                            debug_data[cur_id].update(
-                                {'edit': 'D'})
-                        pass
-                    else:
-                    # Inconclusive.
-                    # Set cur_cc to prev_cc
-                        df.loc[df.id == cur_id, 'country_code'
-                            ] = ','.join(prev_cc)
-                        if debug_data:
-                            debug_data[cur_id].update(
-                                {'edit': 'E, no bc'})
-                else:
-                # bc > 3, the data very likely bad.
-                # Set cur_cc to prev_cc
-                    df.loc[df.id == cur_id, 'country_code'
-                        ] = ','.join(prev_cc)
-                    if debug_data:
-                        debug_data[cur_id].update(
-                            {'edit': 'F, no bc'})
-            return df, debug_data
+        df_explode = df[['id', 'coords']].explode(
+            'coords').dropna()
+        coords_slice = {'id': list(df_explode.id.values
+            )[::slice], 'coords': list(df_explode['coords'
+            ].values)[::slice]} 
+        print('Finding coordinate meta data for '
+            f'{len(coords_slice["id"])} points')
+        CTC = CoordinatesToCountries()
+        df_slice = CTC.run(coords_slice)
+        border_crossings = self.check_border_crossings(df_slice)
+        df_slice['border_crossings'] = \
+            df_slice.id.apply(
+            lambda x: border_crossings[x])
+        df_slice = df_slice.drop_duplicates(
+            subset=['id', 'country_code', 'admin_name'])
+        df_slice = df_slice.groupby('id').agg(
+            {'country_code':
+                 lambda x: ','.join(list(dict.fromkeys(x))),
+             'admin_name': ','.join,
+             'border_crossings': 'mean'}).reset_index()
+        df = pd.merge(
+            df, df_slice[['id',
+            'country_code', 'admin_name',
+            'border_crossings']], on='id', how='right')
+        #df.coords = df.coords.apply(tuple)
+        df['country_name'] = df.country_code.apply(
+            lambda x: \
+            self.country_code_to_country_name(x))
+        return df
+
 
 if __name__ == "__main__":
     TGG = TestGetGeo()
@@ -414,6 +313,6 @@ if __name__ == "__main__":
 #        c=[46.690248, 15.643147],
 #        point=[46.69027, 15.64220])
     TGG.run(
-        a_ids=[11525331563], output_geo=True
+        #a_ids=[10497533128], output_geo=True
         )
     #TGG.test()

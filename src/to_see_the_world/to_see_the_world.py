@@ -164,12 +164,13 @@ class CountryData:
     def get_geo(self, df, slice=1):
         df_explode = df[['id', 'coords']].explode(
             'coords').dropna()
-        coords_slice = list(df_explode.coords)[::slice]
+        coords_slice = {'id': list(df_explode.id.values
+            )[::slice], 'coords': list(df_explode['coords'
+            ].values)[::slice]}
         print('Finding coordinate meta data for '
             f'{len(coords_slice)} points')
         CTC = CoordinatesToCountries()
         df_slice = CTC.run(coords_slice)
-        df_slice['id'] = list(df_explode.id)[::slice]
         border_crossings = \
             self.check_border_crossings(df_slice)
         df_slice['border_crossings'] = \
@@ -186,8 +187,7 @@ class CountryData:
             df, df_slice[['id',
             'country_code', 'admin_name',
             'border_crossings']], on='id', how='right')
-        df.coords = \
-            df.coords.apply(tuple)
+        df.coords = df.coords.apply(tuple)
         df = self.edit_borders(df)
         df['country_name'] = df.country_code.apply(
             lambda x: \
@@ -1137,7 +1137,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=7c2d74e54c0f8b41165be58ebca1bb895f1c384c&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=130b14a146d9f2e2747c37de158d50b70cdbea76&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
