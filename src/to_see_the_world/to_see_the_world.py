@@ -4,6 +4,7 @@ import configparser
 from datetime import datetime
 import glob
 from math import radians, sin, cos, acos
+import os
 from pathlib import Path
 import re
 import time
@@ -17,6 +18,7 @@ import polyline
 from pretty_html_table import build_table
 import requests
 from stravalib import Client, exc
+from stravalib.util.limiter import DefaultRateLimiter
 from thefuzz import process, fuzz
 from wordcloud import WordCloud, STOPWORDS
 import xyzservices.providers as xyz
@@ -356,6 +358,9 @@ class StravaData:
         except exc.Fault:
             print('Authorization code incorrect. Fix or '
                   'proceed with local data.')
+        except requests.exceptions.ConnectionError:
+            print('No code supplied. Proceeding with '
+                'local data.')
     
     def df_by_a_id(self, df, a_id):
         return df[df['athlete/id'] == a_id]
@@ -464,7 +469,13 @@ class StravaData:
          STRAVA_CLIENT_SECRET = \
              self.secrets.get(
              'strava', 'STRAVA_CLIENT_SECRET')
-         client = Client()
+         os.environ['STRAVA_CLIENT_SECRET'] = \
+             STRAVA_CLIENT_SECRET
+         os.environ['STRAVA_CLIENT_ID'] = \
+             STRAVA_CLIENT_ID
+         client = Client(
+             rate_limiter=DefaultRateLimiter(
+             priority='medium'))
          access_dict = \
              client.exchange_code_for_token(
                  client_id= STRAVA_CLIENT_ID,
@@ -1137,7 +1148,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=72c80ec0f93aea4076756fb5ac7309ae2f54cb36&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=d928fe1a62bbcb7791e478a46424f87023721ae6&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
@@ -1147,8 +1158,8 @@ if __name__ == "__main__":
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2025-03-15',
-         #e_time_str='2018-09-16',
+         s_time_str='2025-07-05',
+         #e_time_str='2025-02-01',
          #activity=11725858841,
          #gpx=True,
          #elevations=True
