@@ -356,6 +356,9 @@ class StravaData:
         except exc.Fault:
             print('Authorization code incorrect. Fix or '
                   'proceed with local data.')
+        except requests.exceptions.ConnectionError:
+            print('No code supplied. Proceeding with '
+                'local data.')
     
     def df_by_a_id(self, df, a_id):
         return df[df['athlete/id'] == a_id]
@@ -1137,7 +1140,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=72c80ec0f93aea4076756fb5ac7309ae2f54cb36&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=d928fe1a62bbcb7791e478a46424f87023721ae6&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
@@ -1147,8 +1150,8 @@ if __name__ == "__main__":
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2025-03-15',
-         #e_time_str='2018-09-16',
+         s_time_str='2025-07-05',
+         #e_time_str='2025-02-01',
          #activity=11725858841,
          #gpx=True,
          #elevations=True
