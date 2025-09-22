@@ -154,7 +154,9 @@ The html file is your map! Click on it and open in your web browser. That is it!
 The pickle file stores the useful information gathered via the Strava API. This makes future runs much quicker. The code will first check for local pickle files, look for the date of the last entry, then (if authenticated) check Strava for any new data. This feature allows you to create a new map with out grabbing a new code. This also allows for overlaying other athletes data on one map (remember that only one athlete can be authenticated at a time). The map output will overlay any athlete pickle files to display on a single map. The html file will be named according with the athletes run.
 
 ## Ideas and Fixes Catalog!!
-- [ ] Clean up get_geo and make the code its own repo
+- [ ] Parts replacement function
+Summary of distance etc, by bike ridden
+- [ ] Clean up get_geo and make the code its own repo. Perhaps a new simple code to test if a point is bound within a shape. Find the closest points of the nearest shapes. Use a line- even number of crosses outside, odd number inside. Continue with nearest shapes list til a match is found.. test with simple shapes
 - [ ] Clean up supporting_data inputs. Data should be easily updateable and clear on the datasource
 - [ ] Increase timelapse tracker top speed
 - [ ] Have timelapse tracker skip inactive days, make sure the tracker is always visible, and make all riders tracker a different color
@@ -166,7 +168,7 @@ The pickle file stores the useful information gathered via the Strava API. This 
 - [ ] Option to add in other gpx files from sources other than Strava
 - [ ] Add a link to create a google maps route layer
 - [ ] Add elevation profiles to country summaries
-- [ ] Update Strava authorization to remember secrets, so the user doesnt need to grant access every time
+- [ ] Update Strava authorization to remember secrets, so the user doesnt need to grant access every time (ref: https://stravalib.readthedocs.io/en/latest/get-started/how-to-get-strava-data-python.html#step-4-use-and-refresh-your-strava-api-token)
 - [ ] Create cron (via phone? free place online?) to run map updates once a week
 - [ ] Create summaries print out function. ie, distance, elevation, countries/regions and gif of map movement
 
