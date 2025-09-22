@@ -4,6 +4,7 @@ import configparser
 from datetime import datetime
 import glob
 from math import radians, sin, cos, acos
+import os
 from pathlib import Path
 import re
 import time
@@ -17,6 +18,7 @@ import polyline
 from pretty_html_table import build_table
 import requests
 from stravalib import Client, exc
+from stravalib.util.limiter import DefaultRateLimiter
 from thefuzz import process, fuzz
 from wordcloud import WordCloud, STOPWORDS
 import xyzservices.providers as xyz
@@ -467,7 +469,13 @@ class StravaData:
          STRAVA_CLIENT_SECRET = \
              self.secrets.get(
              'strava', 'STRAVA_CLIENT_SECRET')
-         client = Client()
+         os.environ['STRAVA_CLIENT_SECRET'] = \
+             STRAVA_CLIENT_SECRET
+         os.environ['STRAVA_CLIENT_ID'] = \
+             STRAVA_CLIENT_ID
+         client = Client(
+             rate_limiter=DefaultRateLimiter(
+             priority='medium'))
          access_dict = \
              client.exchange_code_for_token(
                  client_id= STRAVA_CLIENT_ID,
