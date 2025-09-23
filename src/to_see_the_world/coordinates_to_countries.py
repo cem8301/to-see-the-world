@@ -29,7 +29,6 @@ class CoordinatesToCountries:
         df = self.get_geodata(coords)
         df = self.get_closest_admin(df
             ).sort_values(by=['id'], ascending=True)
-        print(df)
         return df
         
     def setup_data(self, fname):
