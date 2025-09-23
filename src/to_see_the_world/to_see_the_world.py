@@ -170,7 +170,7 @@ class CountryData:
             )[::slice], 'coords': list(df_explode['coords'
             ].values)[::slice]}
         print('Finding coordinate meta data for '
-            f'{len(coords_slice)} points')
+            f'{len(coords_slice["id"])} points')
         CTC = CoordinatesToCountries()
         df_slice = CTC.run(coords_slice)
         border_crossings = \
@@ -190,7 +190,7 @@ class CountryData:
             'country_code', 'admin_name',
             'border_crossings']], on='id', how='right')
         df.coords = df.coords.apply(tuple)
-        df = self.edit_borders(df)
+        #df = self.edit_borders(df)
         df['country_name'] = df.country_code.apply(
             lambda x: \
             self.country_code_to_country_name(x))
@@ -620,55 +620,67 @@ class Summary:
          a_ids = self.U.get_a_id_list(df)
          for a_id in a_ids:
              df_a_id = df.get(df['athlete/id'] == a_id)
-             dist = round(df_a_id.distance.sum() *
-                 self.dist_conv, 0)
-             elev = round(
-                 df_a_id.total_elevation_gain.sum() *
-                 self.elev_conv, 0)
-             elev_dist = round(elev/dist, 0)
-             moving_time = round(
-                 df_a_id.moving_time.sum() *
-                 self.sec_to_hr, 1)
-             avg_speed = round(dist/moving_time, 1)
-             num_activities = len(df_a_id)
-             num_full_day = \
-                 len(df_a_id.get(df_a_id.moving_time 
-                     >= self.full_day_hrs/self.sec_to_hr))
-             origin, furthest_point, fp_dist = \
-                 self.get_furthest_point(df_a_id)
-             countries = list(set(','.join(
-                 df_a_id.country_name.values.tolist()
-                 ).split(',')))
-             admin_names = list(set(','.join(
-                 df_a_id.admin_name.values.tolist()
-                 ).split(',')))
-             countries.sort()
-             admin_names.sort()
              print(f'Athlete: {a_id}')
-             print(f'    Total Distance: {dist} '
-                      f'{self.dist_label}')
-             print(f'    Total Elevation Gain: {elev} '
-                      f'{self.elev_label}')
-             print(f'    Average Elevation: {elev_dist} '
-                      f'{self.elev_label}/{self.dist_label}')
-             print(f'    Moving Time: {moving_time} hrs')
-             print(f'    Average Speed: {avg_speed} '
-                      f'{self.dist_label}/hr')
-             print('    Number of Activities: '
-                      f'{num_activities}')
-             print('    Number of Full Days'
-                      f'(>{self.full_day_hrs} hrs): ' 
-                      f'{num_full_day}')
-             print('    Furthest Point From First Ride:')
-             print(f'        Origin: {origin}')
-             print('        Furthest Point: '
-                 f'{furthest_point}')
-             print(f'        Distance: {fp_dist} {units}')
-             print(f'    Countries ({len(countries)}): '    
-                      f'{", ".join(countries)}')
-             print('     Admin Areas: '
-                      f'({len(admin_names)}): ' 
-                      f'{", ".join(admin_names)}')
+             for gear_id in set(df_a_id.get('gear_id')):
+                 if not gear_id:
+                     continue
+                 df_gear_a_id = df_a_id.get(
+                     df_a_id['gear_id'] == gear_id)
+                 dist = round(
+                     df_gear_a_id.distance.sum() *
+                     self.dist_conv, 0)
+                 elev = round(
+                     df_gear_a_id.total_elevation_gain
+                     .sum() * self.elev_conv, 0)
+                 elev_dist = round(elev/dist, 0)
+                 moving_time = round(
+                     df_gear_a_id.moving_time.sum() *
+                     self.sec_to_hr, 1)
+                 avg_speed = round(
+                     dist/moving_time, 1)
+                 num_activities = len(df_gear_a_id)
+                 num_full_day = \
+                     len(df_gear_a_id.get(
+                         df_gear_a_id.moving_time 
+                         >= self.full_day_hrs/self.sec_to_hr))
+                 origin, furthest_point, fp_dist = \
+                     self.get_furthest_point(df_gear_a_id)
+                 countries = list(set(','.join(
+                     df_gear_a_id.country_name.values
+                     .tolist()
+                     ).split(',')))
+                 admin_names = list(set(','.join(
+                     df_gear_a_id.admin_name.values
+                     .tolist()
+                     ).split(',')))
+                 countries.sort()
+                 admin_names.sort()
+                 print(f'Gear Id: {gear_id}')
+                 print(f'    Total Distance: {dist} '
+                          f'{self.dist_label}')
+                 print(f'    Total Elevation Gain: {elev} '
+                          f'{self.elev_label}')
+                 print(f'    Average Elevation: {elev_dist} '
+                          f'{self.elev_label}/{self.dist_label}')
+                 print(f'    Moving Time: {moving_time} '
+                     'hrs')
+                 print(f'    Average Speed: {avg_speed} '
+                          f'{self.dist_label}/hr')
+                 print('    Number of Activities: '
+                          f'{num_activities}')
+                 print('    Number of Full Days'
+                          f'(>{self.full_day_hrs} hrs): ' 
+                          f'{num_full_day}')
+                 print('    Furthest Point From First Ride:')
+                 print(f'        Origin: {origin}')
+                 print('        Furthest Point: '
+                     f'{furthest_point}')
+                 print(f'        Distance: {fp_dist} {units}')
+                 print(f'    Countries ({len(countries)}): '    
+                          f'{", ".join(countries)}')
+                 print('     Admin Areas: '
+                          f'({len(admin_names)}): ' 
+                          f'{", ".join(admin_names)}')
              if gpx:
                  fname = f'{a_id}_{"_".join(countries)}.gpx'
                  self.save_gpx(
@@ -1148,7 +1160,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=d928fe1a62bbcb7791e478a46424f87023721ae6&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=02a2427d3f2c55a0f685e9ad9d06b8fc003d1e04&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
