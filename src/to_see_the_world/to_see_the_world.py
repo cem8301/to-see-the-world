@@ -599,20 +599,18 @@ class Summary:
             self.config.get('data', 'full_day_hrs'))
         self.otd_url = self.config.get('api', 'otd_url')
         self.pwd = Path.cwd()
-
+        self.units = units = self.config.get(
+            'units', 'dist_label')
+            
     def run(self,
         s_time_str='',
         e_time_str='',
         activity=0,
         gpx=False,
-        elevations=False):
+        elevations=False,
+        parts_replacement=False):
          print('×××××× Summary by Athlete ××××××')
          df = self.U.create_base(self.pickles)
-         df = self.U.limit_time(
-             s_time_str, df, start=True)
-         df = self.U.limit_time(
-             e_time_str, df, start=False)
-         units = self.config.get('units', 'dist_label')
          if activity:
              print(
                  f'Limit summary to activity: {activity}')
@@ -624,68 +622,108 @@ class Summary:
              for gear_id in set(df_a_id.get('gear_id')):
                  if not gear_id:
                      continue
+                 print(f'Gear Id: {gear_id}')
                  df_gear_a_id = df_a_id.get(
                      df_a_id['gear_id'] == gear_id)
-                 dist = round(
-                     df_gear_a_id.distance.sum() *
-                     self.dist_conv, 0)
-                 elev = round(
-                     df_gear_a_id.total_elevation_gain
-                     .sum() * self.elev_conv, 0)
-                 elev_dist = round(elev/dist, 0)
-                 moving_time = round(
-                     df_gear_a_id.moving_time.sum() *
-                     self.sec_to_hr, 1)
-                 avg_speed = round(
-                     dist/moving_time, 1)
-                 num_activities = len(df_gear_a_id)
-                 num_full_day = \
-                     len(df_gear_a_id.get(
-                         df_gear_a_id.moving_time 
-                         >= self.full_day_hrs/self.sec_to_hr))
-                 origin, furthest_point, fp_dist = \
-                     self.get_furthest_point(df_gear_a_id)
-                 countries = list(set(','.join(
-                     df_gear_a_id.country_name.values
-                     .tolist()
-                     ).split(',')))
-                 admin_names = list(set(','.join(
-                     df_gear_a_id.admin_name.values
-                     .tolist()
-                     ).split(',')))
-                 countries.sort()
-                 admin_names.sort()
-                 print(f'Gear Id: {gear_id}')
-                 print(f'    Total Distance: {dist} '
-                          f'{self.dist_label}')
-                 print(f'    Total Elevation Gain: {elev} '
-                          f'{self.elev_label}')
-                 print(f'    Average Elevation: {elev_dist} '
-                          f'{self.elev_label}/{self.dist_label}')
-                 print(f'    Moving Time: {moving_time} '
-                     'hrs')
-                 print(f'    Average Speed: {avg_speed} '
-                          f'{self.dist_label}/hr')
-                 print('    Number of Activities: '
-                          f'{num_activities}')
-                 print('    Number of Full Days'
-                          f'(>{self.full_day_hrs} hrs): ' 
-                          f'{num_full_day}')
-                 print('    Furthest Point From First Ride:')
-                 print(f'        Origin: {origin}')
-                 print('        Furthest Point: '
-                     f'{furthest_point}')
-                 print(f'        Distance: {fp_dist} {units}')
-                 print(f'    Countries ({len(countries)}): '    
-                          f'{", ".join(countries)}')
-                 print('     Admin Areas: '
-                          f'({len(admin_names)}): ' 
-                          f'{", ".join(admin_names)}')
-             if gpx:
-                 fname = f'{a_id}_{"_".join(countries)}.gpx'
+                 self.print_summary(
+                     df_gear_a_id, s_time_str, e_time_str)
+                 self.print_ext_summary(
+                     df_gear_a_id, s_time_str, e_time_str)
+         if parts_replacement:
+             # file name should look like:
+             # 'parts_replacement_17432968_
+             # b12156090.csv'
+             # data should look like:
+             # part,start_date_local,end_date_local,
+             # notes
+             # Rear derailleur,2023-05-28,2024-07-15
+             fname_parts_replacement = \
+                 self.config.get('path',
+                'fname_parts_replacement')
+             a_id = int(fname_parts_replacement
+                 .split('_')[3])
+             gear_id = fname_parts_replacement.split(
+                 '_')[4].split('.')[0]
+             df_a_id = df.get(df['athlete/id'
+                 ] == a_id)
+             df_gear_a_id = df_a_id.get(df_a_id[
+                 'gear_id'] == gear_id)
+             df_pr = pd.read_csv(
+                f'{self.pwd}/{fname_parts_replacement}',
+                na_filter = False)
+             for _, row in df_pr.iterrows():
+                 s_time_str = row['start_date_local']
+                 e_time_str = row['end_date_local']
+                 part = row['part']
+                 notes = row['notes']
+                 print(f'{part}: {notes}')
+                 self.print_summary(
+                     df_gear_a_id, s_time_str, e_time_str)
+         if gpx:
+             for a_id in a_ids:
+                 fname = \
+                     f'{a_id}_{s_time_str}_{e_time_str}.gpx'
                  self.save_gpx(
                      df, elevations, fname=fname)
-              
+
+    def print_summary(self, df, s_time_str,
+        e_time_str):
+        df = self.U.limit_time(s_time_str, df,
+            start=True)
+        df = self.U.limit_time(e_time_str, df, 
+            start=False)
+        dist = round(df.distance.sum() *
+             self.dist_conv, 0)
+        elev = round(df.total_elevation_gain
+             .sum() * self.elev_conv, 0)
+        elev_dist = round(elev/dist, 0)
+        moving_time = round(df.moving_time.sum(
+            ) * self.sec_to_hr, 1)
+        avg_speed = round(dist/moving_time, 1)
+        print(f'    Total Distance: {dist} '
+            f'{self.dist_label}')
+        print(f'    Total Elevation Gain: {elev} '
+            f'{self.elev_label}')
+        print(f'    Average Elevation: {elev_dist} '
+            f'{self.elev_label}/{self.dist_label}')
+        print(f'    Moving Time: {moving_time} '
+            'hrs')
+        print(f'    Average Speed: {avg_speed} '
+            f'{self.dist_label}/hr')
+        
+    def print_ext_summary(self, df, s_time_str,
+        e_time_str):
+        df = self.U.limit_time(s_time_str, df,
+            start=True)
+        df = self.U.limit_time(e_time_str, df, 
+            start=False)
+        num_activities = len(df)
+        num_full_day = len(df.get(df.moving_time 
+             >= self.full_day_hrs/self.sec_to_hr))
+        origin, furthest_point, fp_dist = \
+             self.get_furthest_point(df)
+        countries = list(set(','.join(
+             df.country_name.values.tolist()).split(',')))
+        admin_names = list(set(','.join(
+             df.admin_name.values.tolist()).split(',')))
+        countries.sort()
+        admin_names.sort()
+        print('    Number of Activities: '
+            f'{num_activities}')
+        print('    Number of Full Days'
+            f'(>{self.full_day_hrs} hrs): ' 
+            f'{num_full_day}')
+        print('    Furthest Point From First Ride:')
+        print(f'        Origin: {origin}')
+        print('        Furthest Point: '
+            f'{furthest_point}')
+        print(f'        Distance: {fp_dist} {self.units}')
+        print(f'    Countries ({len(countries)}): '    
+            f'{", ".join(countries)}')
+        print('     Admin Areas: '
+            f'({len(admin_names)}): ' 
+            f'{", ".join(admin_names)}')
+            
     def add_elevations(self, lst, elevations):
         if elevations:
             elevations = self.get_elevations(lst)
@@ -770,7 +808,7 @@ class Summary:
             f'({B.admin_name.values[0]}, '
             f'{B.country_name.values[0]})')
         return origin, furthest_point, max_dist
-  
+
 
 class Map:
     def __init__(self):
@@ -1170,9 +1208,10 @@ if __name__ == "__main__":
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2025-07-05',
+         s_time_str='2023-05-28',
          #e_time_str='2025-02-01',
          #activity=11725858841,
          #gpx=True,
-         #elevations=True
+         #elevations=True,
+         parts_replacement=True
          )
