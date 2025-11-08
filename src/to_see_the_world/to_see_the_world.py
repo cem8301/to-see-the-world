@@ -64,11 +64,9 @@ class Utils:
     def limit_time(self, time_str, df, start=True):
         if time_str:
             if start:
-                 print(f'Start Time: {time_str}')
                  df = df.get(
                      df.start_date_local >= time_str)
             else:
-                print(f'End Time: {time_str}')
                 df = df.get(
                      df.start_date_local <= time_str)
         return df
@@ -611,6 +609,8 @@ class Summary:
         parts_replacement=False):
          print('×××××× Summary by Athlete ××××××')
          df = self.U.create_base(self.pickles)
+         print(f'Start Time: {s_time_str}')
+         print(f'End Time: {e_time_str}')
          if activity:
              print(
                  f'Limit summary to activity: {activity}')
@@ -619,16 +619,13 @@ class Summary:
          for a_id in a_ids:
              df_a_id = df.get(df['athlete/id'] == a_id)
              print(f'Athlete: {a_id}')
-             for gear_id in set(df_a_id.get('gear_id')):
-                 if not gear_id:
-                     continue
-                 print(f'Gear Id: {gear_id}')
-                 df_gear_a_id = df_a_id.get(
-                     df_a_id['gear_id'] == gear_id)
-                 self.print_summary(
-                     df_gear_a_id, s_time_str, e_time_str)
-                 self.print_ext_summary(
-                     df_gear_a_id, s_time_str, e_time_str)
+             ans = self.get_summary(
+                 df_a_id, s_time_str, e_time_str)
+             for index, row in ans.iterrows():
+                 print(f"• Row {index}:")
+                 for col_name, value in row.items():
+                     print(f"  - {col_name}: {value}")
+                 print("-" * 20)
          if parts_replacement:
              # file name should look like:
              # 'parts_replacement_17432968_
@@ -640,25 +637,86 @@ class Summary:
              fname_parts_replacement = \
                  self.config.get('path',
                 'fname_parts_replacement')
-             a_id = int(fname_parts_replacement
-                 .split('_')[3])
-             gear_id = fname_parts_replacement.split(
-                 '_')[4].split('.')[0]
-             df_a_id = df.get(df['athlete/id'
-                 ] == a_id)
-             df_gear_a_id = df_a_id.get(df_a_id[
-                 'gear_id'] == gear_id)
              df_pr = pd.read_csv(
                 f'{self.pwd}/{fname_parts_replacement}',
                 na_filter = False)
+             add = {'part': [], 'start_date_local': [],
+                 'end_date_local': [], 'notes': []}
+             for val in list(set(df_pr.part.values)):
+                 last_date = max(df_pr.get(
+                     df_pr.part == val)['end_date_local'])
+                 add['part'].append(val)
+                 add['notes'].append('current')
+                 if not last_date:
+                     add['start_date_local'].append(
+                         max(df_pr.get(df_pr.part == val
+                         )['start_date_local']))
+                     add['end_date_local'].append('')
+                 else:
+                     add['start_date_local'].append(
+                         last_date)
+                     add['end_date_local'].append('')
+                 
+             df_pr_cur = pd.DataFrame(add)
+             df_pr = pd.concat([df_pr, df_pr_cur],
+                 axis=0, ignore_index=True)
+             parts = fname_parts_replacement.replace(
+                 '.csv', '').split('_')
+             a_id = int(parts[3])
+             gear_id = parts[4]
+             df_a_id = df.get(df['athlete/id'] == a_id)
+             df_gear_a_id = df_a_id.get(df_a_id[
+                 'gear_id'] == gear_id)
+             ans = {
+                 'gear_id': [],
+                 'part': [],
+                 'notes': [],
+                 'dist': [],
+                 'elev': [],
+                 'moving_time': []}
              for _, row in df_pr.iterrows():
                  s_time_str = row['start_date_local']
                  e_time_str = row['end_date_local']
-                 part = row['part']
-                 notes = row['notes']
-                 print(f'{part}: {notes}')
-                 self.print_summary(
-                     df_gear_a_id, s_time_str, e_time_str)
+                 df = self.get_summary(
+                     df_gear_a_id, s_time_str, e_time_str
+                     )
+                 ans['gear_id'].append(
+                     df['gear_id'].values[0])
+                 ans['part'].append(row['part'])
+                 ans['notes'].append(row['notes'])
+                 ans['dist'].append(
+                     int(df['dist'].values[0]))
+                 ans['elev'].append(
+                     int(df['elev'].values[0]/1000))
+                 ans['moving_time'].append(
+                     int(df['moving_time'].values[0]))
+             df = pd.DataFrame.from_dict(ans)
+             df_not_cur = df.get(df.notes != 'current'
+                 ).sort_values(by='part')
+             df_cur2 = df.get(df.notes == 'current'
+                 ).sort_values(by='part')
+             
+             df_grouped = df_not_cur.groupby('part')[[
+                 'moving_time', 'dist', 'elev']
+                 ].agg(['mean','min','max']).sort_values(
+                 by='part')
+             for x in ['moving_time', 'dist', 'elev']:
+                 df_grouped[(x, 'current')] = list(
+                     df_cur2[x])
+                 df_grouped[(x, '% of max')] = \
+                     df_grouped[x]['current'
+                     ]/df_grouped[x]['max'] * 100
+                 
+             print('Moving Time (hrs)')
+             print(df_grouped['moving_time'
+                 ].astype(int))
+             print("-" * 20)
+             print('Distance (miles)')
+             print(df_grouped['dist'].astype(int))
+             print("-" * 20)
+             print('Elevation (1000ft)')
+             print(df_grouped['elev'].astype(int))
+             
          if gpx:
              for a_id in a_ids:
                  fname = \
@@ -666,63 +724,58 @@ class Summary:
                  self.save_gpx(
                      df, elevations, fname=fname)
 
-    def print_summary(self, df, s_time_str,
-        e_time_str):
-        df = self.U.limit_time(s_time_str, df,
-            start=True)
-        df = self.U.limit_time(e_time_str, df, 
-            start=False)
-        dist = round(df.distance.sum() *
-             self.dist_conv, 0)
-        elev = round(df.total_elevation_gain
-             .sum() * self.elev_conv, 0)
-        elev_dist = round(elev/dist, 0)
-        moving_time = round(df.moving_time.sum(
-            ) * self.sec_to_hr, 1)
-        avg_speed = round(dist/moving_time, 1)
-        print(f'    Total Distance: {dist} '
-            f'{self.dist_label}')
-        print(f'    Total Elevation Gain: {elev} '
-            f'{self.elev_label}')
-        print(f'    Average Elevation: {elev_dist} '
-            f'{self.elev_label}/{self.dist_label}')
-        print(f'    Moving Time: {moving_time} '
-            'hrs')
-        print(f'    Average Speed: {avg_speed} '
-            f'{self.dist_label}/hr')
+    def calculate_dist(self, series):
+        return round(series.sum() * self.dist_conv, 0)
+
+    def calculate_elev(self, series):
+        return round(series.sum() * self.elev_conv, 0)
+    
+    def calculate_moving_time(self, series):
+        return round(series.sum() * self.sec_to_hr, 1)
         
-    def print_ext_summary(self, df, s_time_str,
+    def calculate_full_day(self, series):
+        return len(series[series  >= self.full_day_hrs/
+            self.sec_to_hr])
+            
+    def calculate_list(self, series):
+        names = list(set(','.join(
+             series.values.tolist()).split(',')))
+        names.sort()
+        return names
+        
+    def get_summary(self, df, s_time_str,
         e_time_str):
         df = self.U.limit_time(s_time_str, df,
             start=True)
         df = self.U.limit_time(e_time_str, df, 
             start=False)
-        num_activities = len(df)
-        num_full_day = len(df.get(df.moving_time 
-             >= self.full_day_hrs/self.sec_to_hr))
-        origin, furthest_point, fp_dist = \
-             self.get_furthest_point(df)
-        countries = list(set(','.join(
-             df.country_name.values.tolist()).split(',')))
-        admin_names = list(set(','.join(
-             df.admin_name.values.tolist()).split(',')))
-        countries.sort()
-        admin_names.sort()
-        print('    Number of Activities: '
-            f'{num_activities}')
-        print('    Number of Full Days'
-            f'(>{self.full_day_hrs} hrs): ' 
-            f'{num_full_day}')
-        print('    Furthest Point From First Ride:')
-        print(f'        Origin: {origin}')
-        print('        Furthest Point: '
-            f'{furthest_point}')
-        print(f'        Distance: {fp_dist} {self.units}')
-        print(f'    Countries ({len(countries)}): '    
-            f'{", ".join(countries)}')
-        print('     Admin Areas: '
-            f'({len(admin_names)}): ' 
-            f'{", ".join(admin_names)}')
+        
+        df_summary = df.groupby('gear_id',
+            as_index=False).agg(
+            dist=('distance', self.calculate_dist),
+            elev=('total_elevation_gain',
+                self.calculate_elev),
+            moving_time=('moving_time',
+                self.calculate_moving_time),
+            num_activities=('id', 'count'),
+            num_full_day=('moving_time',
+                self.calculate_full_day),
+            countries=('country_name',
+                self.calculate_list),
+            admin=('admin_name',
+                self.calculate_list))
+        df_summary['elev_dist'] = round(
+            df_summary['elev']/ df_summary['dist'], 0)
+        df_summary['avg_speed'] = round(
+            df_summary['dist']/
+            df_summary['moving_time'], 1)
+         
+        df_fp = df.groupby('gear_id').apply(
+            self.get_furthest_point
+            ).reset_index(name='furthest_point')
+        df_summary = pd.merge(
+            df_summary, df_fp, on='gear_id')
+        return df_summary
             
     def add_elevations(self, lst, elevations):
         if elevations:
@@ -807,7 +860,7 @@ class Summary:
             f'{B.name.values[0]} '
             f'({B.admin_name.values[0]}, '
             f'{B.country_name.values[0]})')
-        return origin, furthest_point, max_dist
+        return f'{origin} -> {furthest_point}: {max_dist}'
 
 
 class Map:
@@ -1198,7 +1251,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=02a2427d3f2c55a0f685e9ad9d06b8fc003d1e04&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=56e95dccddcc16fb679c40dd1768deada29d8399&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
@@ -1208,7 +1261,7 @@ if __name__ == "__main__":
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2023-05-28',
+         s_time_str='2023-02-23',
          #e_time_str='2025-02-01',
          #activity=11725858841,
          #gpx=True,

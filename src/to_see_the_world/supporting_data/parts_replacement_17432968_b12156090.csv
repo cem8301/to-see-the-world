@@ -1,50 +1,55 @@
 part,start_date_local,end_date_local,notes
-Rear derailleur,2023-05-28,2024-07-15
-Pulley wheels,2023-05-28,2023-11-04,no issue just an upgrade
-Pulley wheels,2023-11-04,2024-11-06
-Chain rings,2023-05-28,2023-10-07,swapping two chains
-Chain,2023-05-28,2023-10-07,swapping two chains
-Cassette,2023-05-28,2023-10-07,swapping two chains
-Chain,2023-10-07,2024-01-30,one chain ring needed filed otherwise ok
-Cassette,2023-10-07,2024-01-30,one chain ring needed filed otherwise ok
-Chain,2024-01-30,2024-07-15
-Cassette,2024-01-30,2024-07-15
-Chain rings,2024-01-30,2024-07-15
-Chain,2024-07-15,2024-09-05,frozen link bad chain from Bishkek
-Cassette,2024-07-15,2024-11-30
-Chain,2024-09-05,2024-11-30
-Chain,2024-11-30,2025-07-23
-Casette,2024-11-30,2025-07-23
-Chain rings,2024-11-30,2025-07-23
-Chain,2025-07-23,2025-09-22
-Casette,2025-07-23,2025-09-22
-Bottom bracket,2023-05-28,2023-10-07
-Bottom bracket,2023-10-07,2024-09-05
-Bottom bracket,2024-09-05,2024-12-27
-Bottom bracket,2024-12-27,2025-07-13
-Bottom bracket,2025-07-13,2025-09-22
-Cables/ housing,2023-05-28,2023-11-04,bag rub needed replaced
-Cables/ housing,2023-11-04,2024-03-20
-Cables/housing,2024-03-20,2024-07-15
-Cables/ housing,2024-07-15,2025-09-22
-Pedals,2023-05-28,2024-05-04
-Pedals,2024-05-04,2024-09-05
-Pedals,2024-09-05,2025-07-05,wanted metal pins
-Grips,2023-05-28,2024-04-01
-Grips,2024-04-01,2025-07-05
-Front derailleur,2023-05-28,2024-11-06,swap road derailleur from mtb for better shifting
-Front brake,2023-05-28,2023-10-21,leaking and broken
-Rear brake,2023-05-28,2024-03-20,preemptive replacement
-Front brake,2023-10-21,2024-11-06,preemptive 
-Rear brake,2024-03-20,2024-11-06,preemptive 
-Rotors,2023-05-28,2024-07-15
-Rotors,2024-07-15,2024-11-06,bad rotors from Bishkek
-Front hub rebuild,2023-05-28,2023-10-07
-Front hub rebuild,2024-07-15,2025-09-02
-Front hub replace,2023-05-28,2024-07-15
-Rear hub replace,2023-05-28,2024-07-15
-Front rim,2023-05-28,2024-07-15
-Back rim,2023-05-28,2023-08-12
-Back rim,2023-08-12,2024-07-15
-Handle bar,2023-05-28,2024-07-15,premetive
-Tires,2023-05-28
+rear derailleur,2023-05-28,2024-07-15
+pulley wheels,2023-05-28,2023-11-04,no issue just an upgrade
+pulley wheels,2023-11-04,2024-11-06
+pulley wheels, 2024-11-06,2025-09-20
+chain,2023-05-28,2023-10-07,swapping two chains
+chain,2023-10-07,2024-01-30,one chain ring needed filed otherwise ok
+chain,2024-01-30,2024-07-15
+chain,2024-07-15,2024-09-05,frozen link bad chain from Bishkek
+chain,2024-09-05,2024-11-30
+chain,2024-11-30,2025-07-23
+chain,2025-07-23,2025-09-20
+cassette,2023-05-28,2023-10-07,swapping two chains
+cassette,2023-10-07,2024-01-30,one chain ring needed filed otherwise ok
+cassette,2024-01-30,2024-07-15
+cassette,2024-07-15,2024-11-30
+cassette,2024-11-30,2025-07-23
+cassette,2025-07-23,2025-09-20
+chain rings,2023-05-28,2023-10-07,swapping two chains
+chain rings,2023-10-07,2024-07-15
+chain rings,2024-07-15,2024-11-30
+chain rings,2024-11-30,2025-07-23
+bottom bracket,2023-05-28,2023-10-07
+bottom bracket,2023-10-07,2024-09-05
+bottom bracket,2024-09-05,2024-12-27
+bottom bracket,2024-12-27,2025-07-13
+bottom bracket,2025-07-13,2025-09-20
+cables/ housing,2023-05-28,2023-11-04,bag rub needed replaced
+cables/ housing,2023-11-04,2024-03-20
+cables/ housing,2024-03-20,2024-07-15
+cables/ housing,2024-07-15,2025-09-20
+pedals,2023-05-28,2024-05-04
+pedals,2024-05-04,2024-09-05
+pedals,2024-09-05,2025-07-05,wanted metal pins
+grips,2023-05-28,2024-04-01
+grips,2024-04-01,2025-07-05
+front derailleur,2023-05-28,2024-11-06,swap road derailleur from mtb for better shifting
+front brake,2023-05-28,2023-10-21,leaking and broken
+rear brake,2023-05-28,2024-03-20,preemptive replacement
+front brake,2023-10-21,2024-11-06,preemptive 
+rear brake,2024-03-20,2024-11-06,preemptive 
+rotors,2023-05-28,2024-07-15
+rotors,2024-07-15,2024-11-06,bad rotors from Bishkek
+front hub rebuild,2023-05-28,2023-10-07
+front hub rebuild,2024-07-15,2025-09-02
+front hub replace,2023-05-28,2024-07-15
+rear hub replace,2023-05-28,2024-07-15
+rear hub rebuild,2024-07-15,2025-10-09
+front rim,2023-05-28,2024-07-15
+back rim,2023-05-28,2023-08-12
+back rim,2023-08-12,2024-07-15
+handle bar,2023-05-28,2024-07-15,premetive
+seat,2023-05-28,2025-07-05,prementive
+tires,2023-05-28
+frame,2023-02-23
