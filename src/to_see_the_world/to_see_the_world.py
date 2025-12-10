@@ -412,7 +412,7 @@ class StravaData:
         df['coords'] = df[
             'map/summary_polyline'].apply(
             polyline.decode)
-        return self.CD.get_geo(df, slice=2)
+        return self.CD.get_geo(df, slice=4)
         
     def get_df_final_time(self, df, a_id,):
         strava_create_time = datetime.strptime(
@@ -769,7 +769,7 @@ class Summary:
         df_summary['avg_speed'] = round(
             df_summary['dist']/
             df_summary['moving_time'], 1)
-         
+        
         df_fp = df.groupby('gear_id').apply(
             self.get_furthest_point
             ).reset_index(name='furthest_point')
@@ -1251,7 +1251,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=56e95dccddcc16fb679c40dd1768deada29d8399&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=7c77ffcb07a8f741cb1ca9160432f07021ca0198&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
