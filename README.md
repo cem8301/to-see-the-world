@@ -48,6 +48,10 @@ Another usecase came up- where other cyclists were asking for specific route dat
 
 ![Alt text](docs/map_screenshots/china_map.jpg)
 
+The user can output a parts summary replacement that summarizes the number of hours, distance, and elevation for each tracked part. Each of these sections shows the min, average, max, current, and current percent of max for each tracked part. This can help make informed decisions about when parts may fail. To create this summary, a [parts_replacement_aid_gid.csv](https://github.com/cem8301/to-see-the-world/blob/main/src/to_see_the_world/supporting_data/parts_replacement_17432968_b12156090.csv) file needs to be created. aid is the athlete id and gid is the gear id. These identifiers are important to summarize the single athlete/ piece of gear. Exmple output is shown below:
+    
+![Alt text](docs/map_screenshots/parts_summary.jpg)
+
 ## Setup
 **tldr; 30-40min for initial setup**
 Get your own Strava API token, install a python IDE, download the code, setup your python environment, add Strava authentication strings
@@ -154,8 +158,6 @@ The html file is your map! Click on it and open in your web browser. That is it!
 The pickle file stores the useful information gathered via the Strava API. This makes future runs much quicker. The code will first check for local pickle files, look for the date of the last entry, then (if authenticated) check Strava for any new data. This feature allows you to create a new map with out grabbing a new code. This also allows for overlaying other athletes data on one map (remember that only one athlete can be authenticated at a time). The map output will overlay any athlete pickle files to display on a single map. The html file will be named according with the athletes run.
 
 ## Ideas and Fixes Catalog!!
-- [ ] Parts replacement function
-Summary of distance etc, by bike ridden
 - [ ] Clean up get_geo and make the code its own repo. Perhaps a new simple code to test if a point is bound within a shape. Find the closest points of the nearest shapes. Use a line- even number of crosses outside, odd number inside. Continue with nearest shapes list til a match is found.. test with simple shapes
 - [ ] Clean up supporting_data inputs. Data should be easily updateable and clear on the datasource
 - [ ] Increase timelapse tracker top speed
