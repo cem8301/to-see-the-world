@@ -1,14 +1,16 @@
-#!/usr/bin/env python3.11
+#!/usr/bin/env python3.13
 import configparser
 import math
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from scipy.spatial import KDTree
-#from shapely import STRtree
-#from shapely.geometry import Point, Polygon
 
 from update_local_data2 import Datasets
+
+import time
+
 
 
 class CoordinatesToCountries:
@@ -26,7 +28,10 @@ class CoordinatesToCountries:
         self.Datasets = Datasets()
 
     def run(self, coords):
-        df = self.get_geodata(coords)
+        df = self.get_geodata_kdtree(coords)
+        fids = set(list(df['fid'].explode()))
+        df = self.check_polygon(df, fids)
+        df = self.fix_outliers(df)
         df = self.get_closest_admin(df
             ).sort_values(by=['id'], ascending=True)
         return df
@@ -35,114 +40,150 @@ class CoordinatesToCountries:
         f = self.config.get('path', fname)
         return pd.read_csv(
             f'{self.pwd}/{f}', na_filter = False)
-        
-    def get_geodata(self, coords):
-       # start_ids = coords['id']
-#        df1 = self.get_geodata_strtree(coords)
-#        complete_ids = list(df1.id.values)
-#        missed_ids = [start_ids.index(x) for x in
-#            start_ids if x not in complete_ids]
-#        if len(missed_ids) == 0:
-#            return df1
-#        print(f'num missed_ids: {len(missed_ids)}, '
-#            'running kdtree')
-#        m_ids = [coords['id'][idx] for idx in
-#            missed_ids]
-#        m_coords = [coords['coords'][idx] for idx in
-#            missed_ids]
-#        missed_coords = {'id': m_ids,
-#            'coords': m_coords}
-#        df2 = self.get_geodata_kdtree(
-#            missed_coords)
-#        df_combined = pd.concat([df1, df2],
-#            ignore_index=True)
-#        return df_combined
-        return self.get_geodata_kdtree(coords)
-    
-    def clockwise_sort_polygon(self, coords):
-        centroids = self.Datasets.get_centroid(
-            coords)
-        center_x = centroids[1]
-        center_y = centroids[0]
-        def angle_to_center(coord):
-            return (math.atan2(
-                coord[1] - center_y, coord[0
-                ] - center_x) + 2 * math.pi) % (
-                2 * math.pi)
-        ans = sorted(coords, 
-            key=angle_to_center, reverse=True)
-        polygon = Polygon(ans)
-        if not polygon.is_valid:
-            print('bad', centroids)
-        return polygon
-
-    def get_polygons(self):
-        df_grouped = self.df_cb_shifted.groupby(
-            'fid').apply(
-            lambda x: list(zip(x['lat'], x['lon']))
-            ).reset_index(name='tuples')
-        df_grouped['tup_len'] = \
-            df_grouped.tuples.apply(len)
-        df_grouped = df_grouped.get(
-            df_grouped.tup_len >= 4
-            ).reset_index()
-        a = self.df_cb_shifted.set_index(
-            'fid')['country_code'
-            ].to_dict()
-        idx_to_fid = df_grouped.to_dict()['fid']
-        cc_index_dict = {k:a[v] for k,v in
-            idx_to_fid.items()}
-        polygons = [self.clockwise_sort_polygon(x
-            ) for x in list(df_grouped.tuples.values)]
-        return polygons, cc_index_dict, idx_to_fid
-
-    def get_geodata_strtree(self, coords):
-        # figure out how to translate the location to the cc
-        # have code choose between these two answers 305 762
-        # for the spain island in France
-        polygons, cc_index_dict, idx_to_fid = \
-            self.get_polygons() 
-        points = [Point(v) for v in coords['coords']]
-        tree = STRtree(points)
-        cgi = tree.query(polygons, predicate='contains')
-        geo_data = {
-            'id': [], 'fid': [], 'country_code': [],
-            'og_coord': []}
-        coords_dict = {idx:{
-            'id': coords['id'][idx],
-            'tuple': coords['coords'][idx]
-            } for idx,_ in enumerate(coords['id'])} 
-        c = dict(zip(cgi[1], cgi[0]))
-        for k,v in c.items():
-            geo_data['country_code'].append(
-                cc_index_dict[v])
-            geo_data['id'].append(coords_dict[k]['id'])
-            geo_data['fid'].append(idx_to_fid[v])
-            geo_data['og_coord'].append(
-                coords_dict[k]['tuple'])
-        return pd.DataFrame(geo_data)
 
     def get_geodata_kdtree(self, coords):
+        tott = 0
         data = list(zip(
             list(self.df_cb_shifted['lat']),
             list(self.df_cb_shifted['lon'])))
         tree = KDTree(data, leafsize=30)
-        _, ii = tree.query(coords['coords'], k=1,
+        _, ii = tree.query(coords['coords'], k=2,
             workers=-1)
         geo_data = {
-            'id': [], 'fid': [], 'country_code': [],
-            'og_coord': []}
+            'id': [], 'og_coord': [], 'fid': [],
+            'country_code': []}
         for idx, i in enumerate(ii):
+            cc = []
+            fid = []
             geo_data['id'].append(coords['id'][idx])
-            fid = self.df_cb_shifted.iloc[[
-                i]].fid.values[0]
+            og_coord = coords['coords'][idx]
+            for ix in i:
+                cc_ans = self.df_cb_shifted.iloc[[ix]
+                    ].country_code.values[0]
+                if cc_ans not in cc:
+                    cc.append(cc_ans)
+                fid_ans = self.df_cb_shifted.iloc[[
+                    ix]].fid.values[0]
+                if fid_ans not in fid:
+                    fid.append(fid_ans)
             geo_data['fid'].append(fid)
-            cc = self.df_cb_shifted.iloc[[
-                i]].country_code.values[0]
             geo_data['country_code'].append(cc)
-            geo_data['og_coord'].append(
-                coords['coords'][idx])
+            geo_data['og_coord'].append(og_coord)
         return pd.DataFrame(geo_data)
+        
+    def points_in_polygon(self, points, poly):
+        """
+        Checks if a set of points are inside a given
+        polygon using the ray casting algorithm.
+        Args:
+            points (list of tuples): List of (x, y)
+            coordinates of points to check.
+            poly (list of tuples): List of (x, y)
+            coordinates of the polygon vertices.
+        Returns:
+            ans (list of tuples): points that are in the
+            polygon
+        """
+        # 1. Convert inputs to numpy arrays for
+        # efficient computation
+        x = np.array([point[0] for point in points])
+        y = np.array([point[1] for point in points])
+        # 2. Extract polygon vertices (using wrap
+        # -around for edges)
+        poly_x = np.array([p[0] for p in poly])
+        poly_y = np.array([p[1] for p in poly])
+        # 3. Initialize results and vertex count
+        n = len(poly)
+        # The 'inside' array tracks how many
+        # intersections were found for each point
+        # We use boolean type and flip its state 
+        # when an odd number of intersections is
+        # counted
+        inside = np.zeros(len(x), dtype=np.bool_)
+        # 4. Iterate over each edge of the polygon
+        for i in range(n):
+            p1x, p1y = poly_x[i], poly_y[i]
+            p2x, p2y = poly_x[(i + 1) % n], poly_y[
+                (i + 1) % n]
+            # 5. The core logic of the ray casting
+            # algorithm:
+            # Check if the ray cast horizontally from
+            # the point intersects the edge [1]
+            # Check if the edge crosses the point's 
+            # y-height (y lies between p1y and p2y)
+            condition1 = (p1y <= y) & (p2y > y)
+            condition2 = (p2y <= y) & (p1y > y)
+            # Check if the intersection point of the
+            # edge is to the right of the point [1]
+            den = p2y - p1y
+            if den == 0:
+                intersect_x = p1x
+            else:
+                intersect_x = (p2x - p1x) * (y - p1y
+                    ) / den + p1x
+            condition3 = x < intersect_x
+            # If all conditions are met for a specific
+            # point and edge, flip the 'inside' state 
+            # for that point [1]
+            # An even number of flips means outside;
+            # an odd number means inside
+            mask = (condition1 | condition2
+                ) & condition3
+            inside[mask] = ~inside[mask]
+        ans = [point for idx, point in enumerate(
+            points) if inside[idx]]
+        return ans
+
+    def check_polygon(self, df, fids, by_fid=True):
+        #fids = set(list(df['fid'].explode()))
+        df['fid'] = df['fid'].apply(lambda x: x[0
+            ] if isinstance(x, list) and len(x) == 1 else x)
+        df['country_code'] = df['country_code'
+            ].apply(lambda x: x[0
+            ] if isinstance(x, list) and len(x) == 1 else x)
+        for fid in fids:
+            cc = self.df_cb_shifted.get(
+                self.df_cb_shifted.fid == fid
+                )['country_code'].values[0]
+            poly = list(self.df_cb_shifted.get(
+                self.df_cb_shifted.fid == fid
+                ).apply(lambda row: [row['lat'],
+                row['lon']], axis=1))
+            dfb = df[df['fid'].apply(
+                lambda x: isinstance(x, list))]
+            if len(dfb) == 0:
+                continue
+            if by_fid:
+                point = list(dfb[dfb['fid'].apply(
+                    lambda x: fid in x)]['og_coord'])
+            else:
+                point = list(dfb[dfb['country_code'].apply(
+                    lambda x: cc in x)]['og_coord'])
+            inside = self.points_in_polygon(
+                    point, poly)
+            df.loc[df.og_coord.isin(inside), 'fid'] = fid
+            df.loc[df.og_coord.isin(inside
+                ), 'country_code'] = cc
+        return df
+        
+    def fix_outliers(self, df):
+        is_list_mask = df['country_code'].apply(
+            lambda x: isinstance(x, list))
+        fids = []
+        # Check all other polygons from the
+        # same country_code. Solves issue when
+        # the closest point is next to an enclave
+        ccs = set(list(df[is_list_mask][
+            'country_code'].explode()))
+        for cc in ccs:
+            df_sub = df.get(df.country_code == cc)
+            fids.extend(list(set(list(
+                df_sub['fid'].explode()))))
+        df = self.check_polygon(
+            df, fids, by_fid=False)
+        # drop any extra outliers
+        df = df[df['country_code'].apply(type) != list]
+        return df
         
     def get_closest_admin(self, df_geo_data):
         geo_data = {
@@ -153,6 +194,8 @@ class CoordinatesToCountries:
             'admin_name': [],
             'city': []}
         for cc in set(df_geo_data.country_code):
+            if not cc:
+                continue
             sub_df_gd = df_geo_data.get(
                 df_geo_data.country_code == cc)
             sub_df_c = self.df_city.get(
@@ -179,24 +222,17 @@ class CoordinatesToCountries:
         return pd.DataFrame(geo_data)
 
 
-
 if __name__ == "__main__":
+    mult = 1
     coords = {
-            0:(42.47551552569287, 1.9644517432906565),#ES
-            1:(36.17471263921515, -94.23251549603685),# AR, USA
-            2:(22.9219, 105.86972), #vietnam
-            3:(22.48113, 103.97163), #Lao Cai, Vietnam
-            4:(21.68350, 102.10566), #laos
-            5:(19.88874, 102.13589), #laos
-            6:(22.92331, 105.87171), #china
-            7:(21.19285, 101.69193), #china
-            8:(22.50781, 103.96374), #Hekou, China 
-            9:(22.52989, 103.93700), #Hekou, China
-            10:(25.01570, 102.76066)}#Kunming, China
-    coords = {'id': [0,1,2,3,4,5,6,7,8,9,10],
-            'coords': [(42.47551552569287, 1.9644517432906565),#ES
-            (36.17471263921515, -94.23251549603685),# AR, USA
-            (22.9219, 105.86972), #vietnam
+        'id': [0,1,2,3,4,5,6,7,8,9,10,11,12,13]*mult,
+        'coords': [
+            (22.61900,88.86807), #IN
+            (47.16299, -114.099606),#MT, US
+            (32.80309, -114.48798), #AZ, US
+            (42.4755, 1.9644517),#ES
+            (36.17471, -94.2325154),# AR, USA
+            (22.9219, 105.86972),  #vietnam
             (22.48113, 103.97163), #Lao Cai, Vietnam
             (21.68350, 102.10566), #laos
             (19.88874, 102.13589), #laos
@@ -204,7 +240,7 @@ if __name__ == "__main__":
             (21.19285, 101.69193), #china
             (22.50781, 103.96374), #Hekou, China 
             (22.52989, 103.93700), #Hekou, China
-            (25.01570, 102.76066)]}#Kunming, China
+            (25.01570, 102.76066)]*mult}#Kunming, China
     CTC = CoordinatesToCountries()
     ans = CTC.run(coords)
     print(ans)
