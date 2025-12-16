@@ -698,8 +698,8 @@ class Summary:
              
              df_grouped = df_not_cur.groupby('part')[[
                  'moving_time', 'dist', 'elev']
-                 ].agg(['mean','min','max']).sort_values(
-                 by='part')
+                 ].agg(['mean','min','max','count']
+                 ).sort_values(by='part')
              for x in ['moving_time', 'dist', 'elev']:
                  df_grouped[(x, 'current')] = list(
                      df_cur2[x])
