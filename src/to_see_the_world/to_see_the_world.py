@@ -722,7 +722,8 @@ class Summary:
                  fname = \
                      f'{a_id}_{s_time_str}_{e_time_str}.gpx'
                  self.save_gpx(
-                     df, elevations, fname=fname)
+                     df, elevations, fname=fname,
+                     sort= True)
 
     def calculate_dist(self, series):
         return round(series.sum() * self.dist_conv, 0)
@@ -819,10 +820,12 @@ class Summary:
                 elevations += len(i) * [0]
         return elevations
 
-    def save_gpx(self, df, elevations, fname='out'):
+    def save_gpx(self, df, elevations, fname='out',
+        sort= False):
         print(f'Saving gpx file as: {fname}')
-        df = df.sort_values(['start_date_local'],
-            ascending = True)
+        if sort:
+            df = df.sort_values(['start_date_local'],
+                ascending = True)
         gpx = gpxpy.gpx.GPX()
         gpx_track = gpxpy.gpx.GPXTrack()
         gpx.tracks.append(gpx_track)
@@ -1251,7 +1254,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=7c77ffcb07a8f741cb1ca9160432f07021ca0198&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=7ff52c11c789ffe40923aa0bf1eacd9e2100ad94&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
