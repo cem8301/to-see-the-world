@@ -12,6 +12,7 @@ from update_local_data2 import Datasets
 import time
 
 
+
 class CoordinatesToCountries:
     def __init__(self,
         fname_country_data='fname_country_data',
@@ -27,101 +28,18 @@ class CoordinatesToCountries:
         self.Datasets = Datasets()
 
     def run(self, coords):
-        st = time.time()
-        #df = self.get_geodata_kdtree(coords)
-        #df.to_pickle(f'{self.pwd}/kdtree.pickle')
-        df = pd.read_pickle(f'{self.pwd}/kdtree.pickle')
-        et = time.time()
-        print('get_geodata_kdtree: ', et-st)
-        st = time.time()
-        st = time.time()
-        df = self.check_polygon(df)
-        #df.to_pickle(f'{self.pwd}/check_polygon.pickle')
-        #df = pd.read_pickle(f'{self.pwd}/check_polygon.pickle')
-        et = time.time()
-        print('check_polygon: ', et-st)
-        
-     
-       
-        l= list(df.get(df.country_code.astype(str).str.len()< 3)['fid'].values)
-        
-        print(df.get(df.country_code.astype(str).str.len()< 3))
-        print(len(l))
-        print(df)
-        v=[]
-        for i in l:
-           if isinstance(i, list):
-               for j in i:
-                   if j not in v:
-                       v.append(float(j))
-           else:
-               if i not in v:
-                   v.append(float(i))
-        print(v)
-           
-        b=[]
-        for x in list(df.country_code):
-            if len(x) > 1:
-                if x not in b:
-                    b.append(x)
-        print(b)
-        
-        exit()
-        
+        df = self.get_geodata_kdtree(coords)
+        fids = set(list(df['fid'].explode()))
+        df = self.check_polygon(df, fids)
+        df = self.fix_outliers(df)
         df = self.get_closest_admin(df
             ).sort_values(by=['id'], ascending=True)
-        et = time.time()
-        print('get_closest_admin: ', et-st)
         return df
         
     def setup_data(self, fname):
         f = self.config.get('path', fname)
         return pd.read_csv(
             f'{self.pwd}/{f}', na_filter = False)
-
-    def get_geodata_kdtree_og(self, coords):
-        tott = 0
-        data = list(zip(
-            list(self.df_cb_shifted['lat']),
-            list(self.df_cb_shifted['lon'])))
-        tree = KDTree(data, leafsize=30)
-        _, ii = tree.query(coords['coords'], k=2,
-            workers=-1)
-        geo_data = {
-            'id': [], 'fid': [], 'country_code': [],
-            'og_coord': []}
-        polies = {}
-        for idx, i in enumerate(ii):
-            geo_data['id'].append(coords['id'][idx])
-            og_coord = coords['coords'][idx]
-            cc = 0
-            fid = 0
-            for ix in i:
-                cc_test = self.df_cb_shifted.iloc[[ix]
-                    ].country_code.values[0]
-                fid = self.df_cb_shifted.iloc[[
-                    ix]].fid.values[0]
-                if fid in polies:
-                    poly = polies[fid]
-                else:
-                    poly = list(self.df_cb_shifted.get(
-                        self.df_cb_shifted.fid == fid
-                        ).apply(lambda row: [row['lat'],
-                        row['lon']], axis=1))
-                    polies[fid] = poly
-                st = time.time()
-                ans = self.is_point_in_polygon(
-                    og_coord, poly)
-                et = time.time()
-                tott += et-st
-                if ans:
-                    cc = cc_test
-                    continue
-            geo_data['fid'].append(fid)
-            geo_data['country_code'].append(cc)
-            geo_data['og_coord'].append(og_coord)
-        print('is_point_in_polygon: ', tott)
-        return pd.DataFrame(geo_data)
 
     def get_geodata_kdtree(self, coords):
         tott = 0
@@ -151,90 +69,120 @@ class CoordinatesToCountries:
             geo_data['fid'].append(fid)
             geo_data['country_code'].append(cc)
             geo_data['og_coord'].append(og_coord)
-        print('is_point_in_polygon: ', tott)
         return pd.DataFrame(geo_data)
         
-    def is_point_in_polygon_og(self, point, polygon):
-        x, y = point
-        n = len(polygon)
-        inside = False
-        p1x, p1y = polygon[0]
-        for i in range(n + 1):
-            p2x, p2y = polygon[i % n]
-            if y > min(p1y, p2y) and y <= max(
-                p1y, p2y) and x <= max(p1x, p2x):
-                if p1y != p2y:
-                    x_intersection = (y - p1y) * (p2x - p1x
-                        ) / (p2y - p1y) + p1x
-                else:
-                    x_intersection = p1x
-                if p1x == p2x or x <= x_intersection:
-                    inside = not inside
-            p1x, p1y = p2x, p2y
-        return inside
-
-    # Source - https://stackoverflow.com/a
-    # Posted by user3274748, modified by community. See post 'Timeline' for change history
-    # Retrieved 2025-11-29, License - CC BY-SA 4.0
-    def is_point_in_polygon(self,points, poly):
+    def points_in_polygon(self, points, poly):
+        """
+        Checks if a set of points are inside a given
+        polygon using the ray casting algorithm.
+        Args:
+            points (list of tuples): List of (x, y)
+            coordinates of points to check.
+            poly (list of tuples): List of (x, y)
+            coordinates of the polygon vertices.
+        Returns:
+            ans (list of tuples): points that are in the
+            polygon
+        """
+        # 1. Convert inputs to numpy arrays for
+        # efficient computation
         x = np.array([point[0] for point in points])
         y = np.array([point[1] for point in points])
+        # 2. Extract polygon vertices (using wrap
+        # -around for edges)
+        poly_x = np.array([p[0] for p in poly])
+        poly_y = np.array([p[1] for p in poly])
+        # 3. Initialize results and vertex count
         n = len(poly)
-        inside = np.zeros(len(x), np.bool_)
-        p2x = 0.0
-        p2y = 0.0
-        xints = 0.0
-        p1x,p1y = poly[0]
-        for i in range(n+1):
-            p2x,p2y = poly[i % n]
-            idx = np.nonzero((y > min(p1y,p2y)) & (y <= max(p1y,p2y)) & (x <= max(p1x,p2x)))[0]
-            if p1y != p2y:
-                xints = (y[idx]-p1y)*(p2x-p1x)/(p2y-p1y
-                    )+p1x
-            if p1x == p2x:
-                inside[idx] = ~inside[idx]
+        # The 'inside' array tracks how many
+        # intersections were found for each point
+        # We use boolean type and flip its state 
+        # when an odd number of intersections is
+        # counted
+        inside = np.zeros(len(x), dtype=np.bool_)
+        # 4. Iterate over each edge of the polygon
+        for i in range(n):
+            p1x, p1y = poly_x[i], poly_y[i]
+            p2x, p2y = poly_x[(i + 1) % n], poly_y[
+                (i + 1) % n]
+            # 5. The core logic of the ray casting
+            # algorithm:
+            # Check if the ray cast horizontally from
+            # the point intersects the edge [1]
+            # Check if the edge crosses the point's 
+            # y-height (y lies between p1y and p2y)
+            condition1 = (p1y <= y) & (p2y > y)
+            condition2 = (p2y <= y) & (p1y > y)
+            # Check if the intersection point of the
+            # edge is to the right of the point [1]
+            den = p2y - p1y
+            if den == 0:
+                intersect_x = p1x
             else:
-                if isinstance(x[idx], list) \
-                    and isinstance(xints, list):
-                    if len(x[idx]) == 0 and len(xints) > 1:
-                        pass
-                        print('h')
-                    else:
-                        idxx = idx[x[idx] <= xints]
-                        inside[idxx] = ~inside[idxx]
-                else:
-                     pass
-                     print('i')
-            p1x,p1y = p2x,p2y
+                intersect_x = (p2x - p1x) * (y - p1y
+                    ) / den + p1x
+            condition3 = x < intersect_x
+            # If all conditions are met for a specific
+            # point and edge, flip the 'inside' state 
+            # for that point [1]
+            # An even number of flips means outside;
+            # an odd number means inside
+            mask = (condition1 | condition2
+                ) & condition3
+            inside[mask] = ~inside[mask]
         ans = [point for idx, point in enumerate(
             points) if inside[idx]]
-        print(len(points), len(ans))
         return ans
 
-    def check_polygon(self, df):
-        fids = set(list(df['fid'].explode()))
+    def check_polygon(self, df, fids, by_fid=True):
+        #fids = set(list(df['fid'].explode()))
         df['fid'] = df['fid'].apply(lambda x: x[0
             ] if isinstance(x, list) and len(x) == 1 else x)
         df['country_code'] = df['country_code'
             ].apply(lambda x: x[0
             ] if isinstance(x, list) and len(x) == 1 else x)
         for fid in fids:
+            cc = self.df_cb_shifted.get(
+                self.df_cb_shifted.fid == fid
+                )['country_code'].values[0]
             poly = list(self.df_cb_shifted.get(
                 self.df_cb_shifted.fid == fid
                 ).apply(lambda row: [row['lat'],
                 row['lon']], axis=1))
             dfb = df[df['fid'].apply(
                 lambda x: isinstance(x, list))]
-            point = list(dfb[dfb['fid'].apply(
-                lambda x: fid in x)]['og_coord'])
-            inside = self.is_point_in_polygon(
+            if len(dfb) == 0:
+                continue
+            if by_fid:
+                point = list(dfb[dfb['fid'].apply(
+                    lambda x: fid in x)]['og_coord'])
+            else:
+                point = list(dfb[dfb['country_code'].apply(
+                    lambda x: cc in x)]['og_coord'])
+            inside = self.points_in_polygon(
                     point, poly)
             df.loc[df.og_coord.isin(inside), 'fid'] = fid
-            cc = self.df_cb_shifted.get(
-                self.df_cb_shifted.fid == fid
-                )['country_code'].values[0]
             df.loc[df.og_coord.isin(inside
                 ), 'country_code'] = cc
+        return df
+        
+    def fix_outliers(self, df):
+        is_list_mask = df['country_code'].apply(
+            lambda x: isinstance(x, list))
+        fids = []
+        # Check all other polygons from the
+        # same country_code. Solves issue when
+        # the closest point is next to an enclave
+        ccs = set(list(df[is_list_mask][
+            'country_code'].explode()))
+        for cc in ccs:
+            df_sub = df.get(df.country_code == cc)
+            fids.extend(list(set(list(
+                df_sub['fid'].explode()))))
+        df = self.check_polygon(
+            df, fids, by_fid=False)
+        # drop any extra outliers
+        df = df[df['country_code'].apply(type) != list]
         return df
         
     def get_closest_admin(self, df_geo_data):
@@ -274,12 +222,15 @@ class CoordinatesToCountries:
         return pd.DataFrame(geo_data)
 
 
-
 if __name__ == "__main__":
     mult = 1
     coords = {
-        'id': [0,1,2,3,4,5,6,7,8,9,10]*mult,
-        'coords': [(42.4755, 1.9644517),#ES
+        'id': [0,1,2,3,4,5,6,7,8,9,10,11,12,13]*mult,
+        'coords': [
+            (22.61900,88.86807), #IN
+            (47.16299, -114.099606),#MT, US
+            (32.80309, -114.48798), #AZ, US
+            (42.4755, 1.9644517),#ES
             (36.17471, -94.2325154),# AR, USA
             (22.9219, 105.86972),  #vietnam
             (22.48113, 103.97163), #Lao Cai, Vietnam
