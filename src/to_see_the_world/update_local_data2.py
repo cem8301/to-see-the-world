@@ -24,16 +24,47 @@ class Datasets():
         self.fname_shifted_boundaries = \
             self.config.get('path',
             'fname_country_boundaries_shifted')
+        self.fname_cities500 = \
+            self.config.get('path', 'fname_cities500')
         self.SB = ShiftBoundaries()
+     
+    def run(self, force=False):
+        # files:
+        # 1. country_boundaries.csv
+        # 2. country_data.csv
+        # 3. cities500.csv
+        if force:
+            print('Force updating all local data:')
+            self.run_country_boundaries(shift=False)
+            self.run_country_data()
+            self.run_cities500()
+            return
+        if not Path(f'{self.pwd}/'
+            f'{self.fname_shifted_boundaries}'
+            ).is_file():
+            self.run_country_boundaries(shift=False)
+        if not Path(f'{self.pwd}/'
+            f'{self.fname_country_data}'
+            ).is_file():
+            self.run_country_data()
+        if not Path(f'{self.pwd}/'
+            f'{self.fname_cities500}'
+            ).is_file():
+            self.run_cities500()
+        print('Files all exists. Please check the '
+           'supporting_data folder for: '
+            'country_boundaries.csv, '
+            'country_data.csv, and cities500.csv. To '
+            'force update, rerun with force=True')
         
     def run_country_boundaries(self, shift=False):
+        print('Updating country_boundaries.csv')
         flat = {'lat': [], 'lon': [], 'country_code': []}
         country_polygons = {}
         for cc in self.country_code_converter:
             country_polygons = \
                 self.get_country_boundaries(
                 cc, country_polygons)
-
         flat_dict = {'lat': [], 'lon': [],
             'country_code': [], 'border_count': [],
             'fid': []}
@@ -43,7 +74,6 @@ class Datasets():
                 continent]
             flat_dict = self.calculate_flat_dict(
                 country_polygons_sub, flat_dict, shift)
-            
         df = pd.DataFrame.from_dict(flat_dict)
         indexes = df[df.border_count == 1].sample(
             frac=0.95).index
@@ -148,18 +178,10 @@ class Datasets():
         return dd, ii
      
     def run_country_data(self):
-        if Path(f'{self.pwd}/'
-            f'{self.fname_shifted_boundaries}'
-            ).is_file():
-            print(f'{self.fname_shifted_boundaries} '
-                'exists')
-            country_polygons = pd.read_csv(
+        print('Updating country_data.csv')
+        country_polygons = pd.read_csv(
                 self.fname_shifted_boundaries,
                 na_filter = False)
-        else:
-            print(f'{self.fname_shifted_boundaries} '
-                'does not exist. Please run '
-                'run_country_boundaries()')
         country_data = self.get_country_data()
         df = pd.DataFrame(country_data
             ).drop_duplicates()
@@ -328,7 +350,11 @@ class Datasets():
             df = pd.read_csv(
                 self.fname_country_data,
                 na_filter = False)
-                
+    
+    def run_cities500(self):
+        print('Updating cities500.csv')
+        pass
+          
     def test_country_boundaries_shifted_file(self,
         country_codes=[], fids=[]):
         print(f'{self.pwd}/'
@@ -373,9 +399,7 @@ class Datasets():
 
 if __name__ == "__main__":
     D = Datasets()
-    #D.run_country_boundaries(shift=False)
-    
-    #D.run_country_data()
-    D.test_country_boundaries_shifted_file(
-        country_codes=[],fids=[276.0006])
+    D.run()
+    #D.test_country_boundaries_shifted_file(
+    #    country_codes=[],fids=[276.0006])
         
