@@ -5,6 +5,9 @@ from time import time
 import pandas as pd
 from pathlib import Path
 import requests
+from io import BytesIO
+from zipfile import ZipFile
+from urllib.request import urlopen
 from scipy.spatial import KDTree
 
 from supporting_data.country_boundaries_shifted import ShiftBoundaries
@@ -26,6 +29,8 @@ class Datasets():
             'fname_country_boundaries_shifted')
         self.fname_cities500 = \
             self.config.get('path', 'fname_cities500')
+        self.url_cities500 = \
+            self.config.get('url', 'url_cities500')
         self.SB = ShiftBoundaries()
      
     def run(self, force=False):
@@ -353,6 +358,17 @@ class Datasets():
     
     def run_cities500(self):
         print('Updating cities500.csv')
+        resp = urlopen(f'{self.url_cities500}')
+        zipfile = ZipFile(BytesIO(resp.read()))
+        fname = zipfile.namelist()[0]
+        col_names = ['geonameid','name','asciiname','alternatenames','lat','lon','feature class','feature code','cc','cc2','admin1','admin2','admin3','admin4','population','elevation','dem','timezone','modification date']#['geonameid','lat','lon','name','admin1','admin2','cc']
+        df = pd.read_csv(
+            zipfile.open(fname), sep='\t',
+            names=col_names,
+            header=None,
+            dtype=object)[['lat', 'lon', 'name', 'admin2','cc2','cc']]
+        zipfile.close()
+        print(df)
         pass
           
     def test_country_boundaries_shifted_file(self,
