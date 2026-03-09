@@ -5,6 +5,9 @@ from time import time
 import pandas as pd
 from pathlib import Path
 import requests
+from io import BytesIO
+from zipfile import ZipFile
+from urllib.request import urlopen
 from scipy.spatial import KDTree
 
 from supporting_data.country_boundaries_shifted import ShiftBoundaries
@@ -24,33 +27,70 @@ class Datasets():
         self.fname_shifted_boundaries = \
             self.config.get('path',
             'fname_country_boundaries_shifted')
+        self.fname_cities500 = \
+            self.config.get('path', 'fname_cities500')
+        self.url_cities500 = \
+            self.config.get('url', 'url_cities500')
         self.SB = ShiftBoundaries()
+     
+    def run(self, force=False):
+        # files:
+        # 1. country_boundaries.csv
+        # 2. country_data.csv
+        # 3. cities500.csv
+        if force:
+            print('Force updating all local data:')
+            self.run_country_boundaries(shift=False)
+            self.run_country_data()
+            self.run_cities500()
+            return
+        if not Path(f'{self.pwd}/'
+            f'{self.fname_shifted_boundaries}'
+            ).is_file():
+            self.run_country_boundaries(shift=False)
+        if not Path(f'{self.pwd}/'
+            f'{self.fname_country_data}'
+            ).is_file():
+            self.run_country_data()
+        if not Path(f'{self.pwd}/'
+            f'{self.fname_cities500}'
+            ).is_file():
+            self.run_cities500()
+        print('Files all exists. Please check the '
+           'supporting_data folder for: '
+            'country_boundaries.csv, '
+            'country_data.csv, and cities500.csv. To '
+            'force update, rerun with force=True')
         
     def run_country_boundaries(self, shift=False):
+        print('Updating country_boundaries.csv')
         flat = {'lat': [], 'lon': [], 'country_code': []}
         country_polygons = {}
         for cc in self.country_code_converter:
-            country_polygons = self.get_country_boundaries(
+            country_polygons = \
+                self.get_country_boundaries(
                 cc, country_polygons)
-
         flat_dict = {'lat': [], 'lon': [],
             'country_code': [], 'border_count': [],
             'fid': []}
         for continent in country_polygons:
-            country_polygons_sub = country_polygons[continent]
+            print(continent)
+            country_polygons_sub = country_polygons[
+                continent]
             flat_dict = self.calculate_flat_dict(
                 country_polygons_sub, flat_dict, shift)
-            
         df = pd.DataFrame.from_dict(flat_dict)
-        h = df.get(df.border_count == 1).iloc[::50]
-        g = df.get(df.border_count > 1)
-        df = pd.concat([h, g], ignore_index = True)
+        indexes = df[df.border_count == 1].sample(
+            frac=0.95).index
+        df = df.drop(indexes)
         self.save_shifted_boundaries(
             df[['lat', 'lon', 'country_code', 'fid']])
    
-    def calculate_flat_dict(self, country_polygons_sub,
+    def calculate_flat_dict(self,
+        country_polygons_sub,
         flat_dict, shift):
-        df = self.calculate_border_count(country_polygons_sub)
+        df = self.calculate_border_count(
+            country_polygons_sub)
         if shift:
             noshift_df = df.get(df.bc_fid_avg == 1.0)
             shift_df = df.get(df.bc_fid_avg > 1.0) 
@@ -78,7 +118,8 @@ class Datasets():
                 flat_dict[k].extend(list(df[k].values))  
         return flat_dict
 
-    def calculate_border_count(self, country_polygons):
+    def calculate_border_count(self,
+        country_polygons):
         flat_og = self.SB.flatten(country_polygons,
             lat_first=False, round_val=9)
         df = pd.DataFrame.from_dict(flat_og)
@@ -98,7 +139,8 @@ class Datasets():
         for cc in country_polygons_sub:
             if cc != row.country_code:
                 for fid in country_polygons_sub[cc]:
-                    nested_list = country_polygons_sub[cc][fid]
+                    nested_list = country_polygons_sub[
+                        cc][fid]
                     for coords in nested_list:
                         for (x,y) in coords:
                             data_other_c.append((y,x))
@@ -120,10 +162,13 @@ class Datasets():
         points.append(len(flat_shift['lat']))
         points.sort()
         for idx in range(0, len(points) - 1):
-            country_boundary_segment_center = int(points[idx
+            country_boundary_segment_center = int(
+                points[idx
                 ] + (points[idx + 1] - points[idx])/2)
-            dd, ii = self.get_closest_point(data_other_c,
-                data[country_boundary_segment_center])
+            dd, ii = self.get_closest_point(
+                data_other_c,
+                 data[country_boundary_segment_center
+                 ])
             if dd > 0.1:
                 ocean = 1 # true
             else:
@@ -138,18 +183,10 @@ class Datasets():
         return dd, ii
      
     def run_country_data(self):
-        if Path(f'{self.pwd}/'
-            f'{self.fname_shifted_boundaries}'
-            ).is_file():
-            print(f'{self.fname_shifted_boundaries} '
-                'exists')
-            country_polygons = pd.read_csv(
+        print('Updating country_data.csv')
+        country_polygons = pd.read_csv(
                 self.fname_shifted_boundaries,
                 na_filter = False)
-        else:
-            print(f'{self.fname_shifted_boundaries} '
-                'does not exist. Please run '
-                'run_country_boundaries()')
         country_data = self.get_country_data()
         df = pd.DataFrame(country_data
             ).drop_duplicates()
@@ -270,7 +307,8 @@ class Datasets():
             centroids[cc] = self.get_centroid(coords)
         return centroids
     
-    def get_country_boundaries(self, cc, country_polygons={}):
+    def get_country_boundaries(
+        self, cc, country_polygons={}):
         print(f'Querying for {cc}')
         val = self.country_code_converter[cc]
         url = ("https://services.arcgis.com"
@@ -294,9 +332,11 @@ class Datasets():
             #    continue
             fid = feature['attributes']['FID']
             coords = feature['geometry']['rings']
-            continent = feature['attributes']['CONTINENT']
+            continent = feature[
+                'attributes']['CONTINENT']
             country_polygons.setdefault(continent, {})
-            country_polygons[continent].setdefault(cc, {})
+            country_polygons[continent].setdefault(
+                cc, {})
             country_polygons[continent][cc].setdefault(
                 fid, []).extend(coords)
         return country_polygons
@@ -315,9 +355,24 @@ class Datasets():
             df = pd.read_csv(
                 self.fname_country_data,
                 na_filter = False)
-                
+    
+    def run_cities500(self):
+        print('Updating cities500.csv')
+        resp = urlopen(f'{self.url_cities500}')
+        zipfile = ZipFile(BytesIO(resp.read()))
+        fname = zipfile.namelist()[0]
+        col_names = ['geonameid','name','asciiname','alternatenames','lat','lon','feature class','feature code','cc','cc2','admin1','admin2','admin3','admin4','population','elevation','dem','timezone','modification date']#['geonameid','lat','lon','name','admin1','admin2','cc']
+        df = pd.read_csv(
+            zipfile.open(fname), sep='\t',
+            names=col_names,
+            header=None,
+            dtype=object)[['lat', 'lon', 'name', 'admin2','cc2','cc']]
+        zipfile.close()
+        print(df)
+        pass
+          
     def test_country_boundaries_shifted_file(self,
-        country_codes):
+        country_codes=[], fids=[]):
         print(f'{self.pwd}/'
             f'{self.fname_shifted_boundaries}')
         if Path(f'{self.pwd}/'
@@ -329,24 +384,38 @@ class Datasets():
                 self.fname_shifted_boundaries,
                 na_filter = False)
             data = {}
-            for cc in country_codes:
-                data.setdefault(cc, {})
-                for fid in set(df.get(df.country_code == cc
-                    ).fid.values):
-                    #print(fid)
+            if country_codes:
+                for cc in country_codes:
+                    data.setdefault(cc, {})
+                    for fid in set(df.get(
+                        df.country_code == cc
+                        ).fid.values):
+                        #print(fid)
+                        lat = df.get(df.fid == fid).lat
+                        lon = df.get(df.fid == fid).lon
+                        data[cc].setdefault(fid, []).append(
+                            list(zip(lat, lon)))
+            elif fids:
+                data['fid'] = {}
+                for fid in fids:
                     lat = df.get(df.fid == fid).lat
                     lon = df.get(df.fid == fid).lon
-                    data[cc].setdefault(fid, []).append(
-                        list(zip(lat, lon))) 
+                    print(f'size of shape: {len(lat)}')
+                    data['fid'].setdefault(fid, []).append(
+                        list(zip(lat, lon)))
+            else:
+                print('please supply ccs or fids. exiting')
+                exit()
             self.SB.save_gpx(data)
-            coords = [-30.48457889491692,
-                27.61236683325842]
-            ans = df.get(df.lat== coords[0])
-            print(ans)
+            #coords = [-30.48457889491692,
+#                27.61236683325842]
+#            ans = df.get(df.lat== coords[0])
+#            print(ans)
 
 
 if __name__ == "__main__":
     D = Datasets()
-    D.run_country_boundaries(shift=False)
-    #D.run_country_data()
-    #D.test_country_boundaries_shifted_file(['NZ'])
+    D.run()
+    #D.test_country_boundaries_shifted_file(
+    #    country_codes=[],fids=[276.0006])
+        

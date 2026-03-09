@@ -14,17 +14,6 @@ class ShiftBoundaries:
         pshift = {}
         for polygon in polygons:
             print(f'Shifting {polygon}')
-            if polygon == 'LS' \
-                or polygon == 'SM' \
-                or polygon == 'VA':
-                #Lesotho(LS) is within South Africa (ZA).
-                #LS, needs to seperate its shifted border
-                #by a greater value than its neighbor,
-                #else their two borders are equal.
-                #Same is with San Marino (SM) and
-                # Vatican City (VA). Their
-                #borders are completely within Italy (IT)
-                offset = offset * 100
             for fid in polygons[polygon]:
                 coords = polygons[polygon][fid]
                 solution = []
