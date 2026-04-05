@@ -701,6 +701,7 @@ class Summary:
                  ].agg(['mean','min','max','count']
                  ).sort_values(by='part')
              for x in ['moving_time', 'dist', 'elev']:
+                 df_grouped[(x, 'count')] += 1
                  df_grouped[(x, 'current')] = list(
                      df_cur2[x])
                  df_grouped[(x, '% of max')] = \
@@ -721,6 +722,10 @@ class Summary:
              for a_id in a_ids:
                  fname = \
                      f'{a_id}_{s_time_str}_{e_time_str}.gpx'
+                 df = self.U.limit_time(s_time_str, df,
+                     start=True)
+                 df = self.U.limit_time(e_time_str, df, 
+                     start=False)
                  self.save_gpx(
                      df, elevations, fname=fname,
                      sort= True)
@@ -1254,20 +1259,20 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=7ff52c11c789ffe40923aa0bf1eacd9e2100ad94&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=e6c4bb4b3bccf6713fb502d7f9ac96f673f01d49&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
-         #s_time_str='2024-01-01',
+         #s_time_str='2025-07-05',
          #e_time_str='2024-08-06',
          #activity=11725858841
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2023-02-23',
-         #e_time_str='2025-02-01',
-         #activity=11725858841,
-         #gpx=True,
+         s_time_str='2026-03-10',#'2023-02-23',
+         #e_time_str='2026-03-17',
+         #activity=1172585884''
+         gpx=True,
          #elevations=True,
-         parts_replacement=True
+         #parts_replacement=True
          )
