@@ -12,6 +12,7 @@ chain,2024-09-05,2024-11-30
 chain,2024-11-30,2025-07-23
 chain,2025-07-23,2025-09-20
 chain,2025-09-20,2026-01-31
+chain,2026-01-31,2026-04-15
 cassette,2023-05-28,2023-10-07,swapping two chains
 cassette,2023-10-07,2024-01-30,one chain ring needed filed otherwise ok
 cassette,2024-01-30,2024-07-15
@@ -19,6 +20,7 @@ cassette,2024-07-15,2024-11-30
 cassette,2024-11-30,2025-07-23
 cassette,2025-07-23,2025-09-20
 cassette,2025-09-20,2026-01-31
+cassette,2026-01-31,2026-04-15
 chain rings,2023-05-28,2023-10-07,swapping two chains
 chain rings,2023-10-07,2024-07-15
 chain rings,2024-07-15,2024-11-30
@@ -39,6 +41,7 @@ pedals,2024-05-04,2024-09-05
 pedals,2024-09-05,2025-07-05,wanted metal pins
 grips,2023-05-28,2024-04-01
 grips,2024-04-01,2025-07-05
+grips,2025-07-05,2026-04-15
 front derailleur,2023-05-28,2024-11-06,swap road derailleur from mtb for better shifting
 front brake,2023-05-28,2023-10-21,leaking and broken
 rear brake,2023-05-28,2024-03-20,preemptive replacement
@@ -49,14 +52,21 @@ rotors,2024-07-15,2024-11-06,bad rotors from Bishkek
 rotors,2024-11-06,2026-02-26
 front hub rebuild,2023-05-28,2023-10-07
 front hub rebuild,2024-07-15,2025-09-02
+front hub rebuild,2025-09-02,2026-04-15
 front hub replace,2023-05-28,2024-07-15
+front hub replace,2024-07-15,2026-04-15
 rear hub replace,2023-05-28,2024-07-15
+rear hub replace,2024-07-15,2026-04-15
 rear hub rebuild,2024-07-15,2025-10-09
+rear hub rebuild,2025-10-09,2026-04-15
 front rim,2023-05-28,2024-07-15
+front rim,2024-07-15,2026-04-15
 back rim,2023-05-28,2023-08-12
 back rim,2023-08-12,2024-07-15
+back rim,2024-07-15,2026-04-15
 handle bar,2023-05-28,2024-07-15,premetive
 seat,2023-05-28,2025-07-05,prementive
-tires,2023-02-23,2025-11-25
+tires 2.4,2023-02-23,2025-11-25
+tires 2.8,2026-04-15
 frame,2023-02-23
 

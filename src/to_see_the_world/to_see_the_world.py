@@ -701,12 +701,14 @@ class Summary:
                  ].agg(['mean','min','max','count']
                  ).sort_values(by='part')
              for x in ['moving_time', 'dist', 'elev']:
-                 df_grouped[(x, 'count')] += 1
+                 #df_grouped[(x, 'count')] += 1
                  df_grouped[(x, 'current')] = list(
                      df_cur2[x])
                  df_grouped[(x, '% of max')] = \
                      df_grouped[x]['current'
                      ]/df_grouped[x]['max'] * 100
+                 df_grouped[x] = df_grouped[x].fillna(
+                     100)
                  
              print('Moving Time (hrs)')
              print(df_grouped['moving_time'
@@ -1259,7 +1261,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=e6c4bb4b3bccf6713fb502d7f9ac96f673f01d49&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=635a97ab64a128be1c8828d2561f7a5a296ef9ee&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
@@ -1269,10 +1271,10 @@ if __name__ == "__main__":
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2026-03-10',#'2023-02-23',
+         s_time_str='2025-07-05',#'2023-02-23',
          #e_time_str='2026-03-17',
          #activity=1172585884''
-         gpx=True,
+         #gpx=True,
          #elevations=True,
-         #parts_replacement=True
+         parts_replacement=True
          )
