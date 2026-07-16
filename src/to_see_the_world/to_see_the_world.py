@@ -624,7 +624,8 @@ class Summary:
              for index, row in ans.iterrows():
                  print(f"• Row {index}:")
                  for col_name, value in row.items():
-                     print(f"  - {col_name}: {value}")
+                     label = self.get_label(col_name)
+                     print(f"  - {col_name}: {value} {label}")
                  print("-" * 20)
          if parts_replacement:
              # file name should look like:
@@ -731,7 +732,21 @@ class Summary:
                  self.save_gpx(
                      df, elevations, fname=fname,
                      sort= True)
-
+                     
+    def get_label(self, col_name):
+        if 'dist' == col_name:
+            return self.dist_label
+        elif 'elev' == col_name:
+            return self.elev_label
+        elif 'elev_dist' == col_name:
+            return f'{self.elev_label}/{self.dist_label}'
+        elif 'avg_speed' == col_name:
+            return f'{self.dist_label}/hr'
+        elif 'moving_time' == col_name:
+            return 'hrs'
+        else:
+            return ''
+            
     def calculate_dist(self, series):
         return round(series.sum() * self.dist_conv, 0)
 
@@ -1261,7 +1276,7 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=635a97ab64a128be1c8828d2561f7a5a296ef9ee&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=1ddfd7763577d1e91baee056fa426e954f1bc1d0&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
