@@ -1276,18 +1276,18 @@ class Map:
        
 
 if __name__ == "__main__":
-     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=1ddfd7763577d1e91baee056fa426e954f1bc1d0&scope=read,activity:read_all'
+     http_with_code = 'https://www.localhost.com/exchange_token?state=&code=5d34edaff65fd42d4a64c450bb17a280ff6bac9c&scope=read,activity:read_all'
      M = Map()
      M.run(
          http_with_code,
          #s_time_str='2025-07-05',
-         #e_time_str='2024-08-06',
+         #e_time_str='2026-07-05',
          #activity=11725858841
      )
      Sm = Summary()
      Sm.run(
-         s_time_str='2025-07-05',#'2023-02-23',
-         #e_time_str='2026-03-17',
+         s_time_str='2025-07-04',
+         #e_time_str='2025-03-05',
          #activity=1172585884''
          #gpx=True,
          #elevations=True,
