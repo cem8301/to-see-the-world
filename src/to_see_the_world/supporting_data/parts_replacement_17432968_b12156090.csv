@@ -13,6 +13,7 @@ chain,2024-11-30,2025-07-23
 chain,2025-07-23,2025-09-20
 chain,2025-09-20,2026-01-31
 chain,2026-01-31,2026-04-15
+chain,2026-04-15,2026-10-05
 cassette,2023-05-28,2023-10-07,swapping two chains
 cassette,2023-10-07,2024-01-30,one chain ring needed filed otherwise ok
 cassette,2024-01-30,2024-07-15
@@ -21,11 +22,13 @@ cassette,2024-11-30,2025-07-23
 cassette,2025-07-23,2025-09-20
 cassette,2025-09-20,2026-01-31
 cassette,2026-01-31,2026-04-15
+cassette,2026-04-15,2026-10-05
 chain rings,2023-05-28,2023-10-07,swapping two chains
 chain rings,2023-10-07,2024-07-15
 chain rings,2024-07-15,2024-11-30
 chain rings,2024-11-30,2025-07-23
 chain rings,2025-07-23,2026-01-31
+chain rings,2026-01-31,2026-10-05
 bottom bracket,2023-05-28,2023-10-07
 bottom bracket,2023-10-07,2024-09-05
 bottom bracket,2024-09-05,2024-12-27
@@ -38,6 +41,7 @@ cables/ housing,2023-11-04,2024-03-20
 cables/ housing,2024-03-20,2024-07-15
 cables/ housing,2024-07-15,2025-09-20
 cables/ housing,2025-09-20,2026-06-15
+front shifter,2023-05-28,2026-10-05
 pedals,2023-05-28,2024-05-04
 pedals,2024-05-04,2024-09-05
 pedals,2024-09-05,2025-07-05,wanted metal pins
